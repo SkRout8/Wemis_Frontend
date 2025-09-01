@@ -175,13 +175,16 @@
 //     </div>
 //   )
 // }
+
 import React, { useContext, useState } from "react";
 import { motion } from "framer-motion";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { toast } from "react-toastify";
 import Loginn from "../Images/Login2.png";
 import axios from "axios";
 import { UserAppContext } from "../contexts/UserAppProvider";
 import { useNavigate } from "react-router-dom";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -193,7 +196,7 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); // Start loading
+    setLoading(true);
     try {
       const response = await axios.post(
         "https://wemis-backend.onrender.com/superadmin/login",
@@ -202,28 +205,33 @@ export default function Login() {
 
       if (response.data?.token && response.data?.user) {
         login(response.data.token, response.data.user);
+        toast.success("Login Successful!", { position: "top-right" });
 
-        // Redirect based on role
-        switch (response.data.user.role) {
-          case "superadmin":
-            navigate("/superadmin/dashboard");
-            break;
-          case "admin":
-            navigate("/admin/dashboard");
-            break;
-          case "wlp":
-            navigate("/wlp/dashboard");
-            break;
-          default:
-            navigate("/manufacture/dashboard");
-        }
+        // Redirect after short delay
+        setTimeout(() => {
+          switch (response.data.user.role) {
+            case "superadmin":
+              navigate("/superadmin/dashboard");
+              break;
+            case "admin":
+              navigate("/admin/dashboard");
+              break;
+            case "wlp":
+              navigate("/wlp/dashboard");
+              break;
+            default:
+              navigate("/manufacture/dashboard");
+          }
+        }, 1500);
       } else {
-        console.error("Invalid login response:", response.data);
+        toast.error("Invalid credentials. Please try again.", {
+          position: "top-right",
+        });
       }
     } catch (error) {
-      console.log("Login Error:", error.message);
+      toast.error("Login failed! " + error.message, { position: "top-right" });
     } finally {
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
   };
 
@@ -232,15 +240,15 @@ export default function Login() {
       {/* Loading Overlay */}
       {loading && (
         <motion.div
-          className="absolute inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50"
+          className="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
           <motion.div
-            className="w-14 h-14 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.3, repeat: Infinity, repeatType: "reverse" }}
+            className="w-16 h-16 border-4 border-yellow-300 border-t-transparent rounded-full animate-spin shadow-lg"
+            initial={{ scale: 0.8, rotate: 0 }}
+            animate={{ scale: 1, rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
           />
         </motion.div>
       )}
@@ -284,9 +292,7 @@ export default function Login() {
 
             {/* Password Field */}
             <div>
-              <label className="block mb-2 text-yellow-300 text-sm" htmlFor="password"
-              >
-              
+              <label className="block mb-2 text-yellow-300 text-sm" htmlFor="password">
                 Password
               </label>
               <div className="relative">

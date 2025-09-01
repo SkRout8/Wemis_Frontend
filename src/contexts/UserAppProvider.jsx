@@ -137,7 +137,7 @@ const UserAppProvider = ({ children }) => {
     localStorage.setItem("user", JSON.stringify(userData));
     setToken(authToken);
     setUser(userData);
-    toast.success("Login Successful");
+    // toast.success("Login Successful");
   };
 
   const logout = () => {
