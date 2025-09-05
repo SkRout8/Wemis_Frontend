@@ -220,7 +220,7 @@ export default function Login() {
               navigate("/wlp/dashboard");
               break;
             default:
-              navigate("/manufacture/dashboard");
+              navigate("/manufacturer/dashboard");
           }
         }, 1500);
       } else {

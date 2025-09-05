@@ -1,62 +1,62 @@
 import React, { useEffect, useState, useContext } from "react";
-import AdminNavbar from "./AdminNavbar";
+import WlpNavbar from "./WlpNavbar";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { UserAppContext } from "../contexts/UserAppProvider";
 
-function AdminElementAsignList() {
+function WlpElementAssignList() {
   const [assignedData, setAssignedData] = useState([]);
   const [elements, setElements] = useState([]);
-  const [wlps, setWlps] = useState([]);
+  const [dealers, setDealers] = useState([]);
   const [selectedElements, setSelectedElements] = useState([]);
-  const [selectedWlps, setSelectedWlps] = useState([]);
+  const [selectedDealers, setSelectedDealers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [fetchwlp, setfetchwlp] = useState([]);
+  const [allfetchlist, setallfetchlist] = useState([])
 
   const { token: contextToken } = useContext(UserAppContext);
   const tkn = contextToken || localStorage.getItem("token");
 
-  // Fetch Assigned Elements
+  // Fetch assigned elements (Dealer Assignments)
   const fetchAssignedData = async () => {
     try {
       const response = await axios.post(
-        "https://wemis-backend.onrender.com/admin/fetchAllDaterelatedToassignAdminElement",
+        "https://wemis-backend.onrender.com/wlp/fetchAllDataRelatedtoAssignElements",
         {},
         { headers: { Authorization: `Bearer ${tkn}` } }
       );
 
-      setAssignedData(
-        Array.isArray(response.data?.data) ? response.data.data : []
-      );
-      setWlps(Array.isArray(response.data?.wlps) ? response.data.wlps : []);
-      setElements(response.data.adminElementList || []);
+      setAssignedData(Array.isArray(response.data?.data) ? response.data.data : []);
+      setElements(response.data.adminElementList);
+      setDealers(response.data.manufactur);
     } catch (error) {
-      toast.error("Error fetching assigned elements");
+      toast.error("Error fetching assigned dealer elements");
       console.error(error);
     }
   };
 
-  // Fetch Elements + WLPs
-  const fetchElementsAndWlps = async () => {
+  //Fetch available elements + dealers for assignment
+  const fetchElementsAndDealers = async () => {
     try {
       const response = await axios.post(
-        "https://wemis-backend.onrender.com/admin/fetchAllAvailableElementsAndWlps",
+        "https://wemis-backend.onrender.com/wlp/fetchAssignElement",
         {},
         { headers: { Authorization: `Bearer ${tkn}` } }
       );
-      setElements(response.data?.adminElementList || []);
-      setWlps(response.data?.wlps || []);
+      console.log(response.data.manufactur)
+      setallfetchlist(response.data.manufactur)
+
+
     } catch (error) {
-      console.error("Error fetching elements and wlps", error);
+      console.error("Error fetching elements and dealers", error);
     }
   };
 
-  // Assign Elements to WLPs
+  // Assign Elements to Dealers
   const handleAssign = async () => {
-    if (selectedWlps.length === 0) {
-      toast.warning("Please select at least one WLP");
+    if (selectedDealers.length === 0) {
+      toast.warning("Please select at least one Dealer");
       return;
     }
     if (selectedElements.length === 0) {
@@ -66,14 +66,14 @@ function AdminElementAsignList() {
 
     try {
       await axios.post(
-        "https://wemis-backend.onrender.com/admin/adminAssignElement",
-        { wlpId: selectedWlps, elementNameId: selectedElements },
+        "https://wemis-backend.onrender.com/wlp/AssignElements",
+        { manufacturId: selectedDealers, elementNameId: selectedElements },
         { headers: { Authorization: `Bearer ${tkn}` } }
       );
       toast.success("Element assigned successfully!");
       setIsModalOpen(false);
       setSelectedElements([]);
-      setSelectedWlps([]);
+      setSelectedDealers([]);
       fetchAssignedData();
     } catch (error) {
       toast.error("Error assigning element");
@@ -81,19 +81,20 @@ function AdminElementAsignList() {
     }
   };
 
-  // Toggle selection for WLPs
+  // Toggle Dealer selection
   const toggleSelection = (id) => {
-    setSelectedWlps((prev) =>
-      prev.includes(id) ? prev.filter((w) => w !== id) : [...prev, id]
+    setSelectedDealers((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
     );
   };
 
   useEffect(() => {
     fetchAssignedData();
+    fetchElementsAndDealers();
   }, []);
 
   const openModal = () => {
-    fetchElementsAndWlps();
+
     setIsModalOpen(true);
   };
 
@@ -101,35 +102,9 @@ function AdminElementAsignList() {
     item?.elementName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Fetch All Wlp List
-  const fetchWlpAssignElementList = async () => {
-    try {
-      const response = await axios.post(
-        "https://wemis-backend.onrender.com/admin/fetchWlpAssignElementList",
-        {},
-        { headers: { Authorization: `Bearer ${tkn}` } }
-      );
-
-
-      setfetchwlp(response.data)
-      console.log(response.data)
-    } catch (error) {
-      toast.error("Error fetching WLP assigned elements");
-      console.error(error);
-    }
-  };
-
-  useEffect(() => {
-    fetchWlpAssignElementList();
-  }, [assignedData]);
-
-
-
-
-
   return (
     <div className="min-h-screen bg-black mt-36">
-      <AdminNavbar />
+      <WlpNavbar />
       <div className="p-6">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -140,20 +115,20 @@ function AdminElementAsignList() {
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-yellow-400">
-              Assigned Elements List
+              Dealer Assigned Elements
             </h2>
             <button
               onClick={openModal}
               className="px-4 py-2 border-2 border-yellow-400 text-yellow-400 rounded-lg hover:bg-yellow-400 hover:text-black transition"
             >
-              + Assign Elements
+              + Assign Dealer
             </button>
           </div>
 
           {/* Search */}
           <div className="flex justify-between items-center mb-4">
             <p className="text-gray-400 text-sm italic">
-              List of elements assigned to you
+              List of elements assigned to your dealers
             </p>
             <input
               type="text"
@@ -165,53 +140,54 @@ function AdminElementAsignList() {
           </div>
 
           {/* Table */}
-         <div className="overflow-x-auto rounded-lg">
-  <table className="min-w-full text-sm">
-    <thead className="bg-yellow-400 text-black">
-      <tr>
-        <th className="px-6 py-3 text-left">Si No</th>
-        <th className="px-6 py-3 text-left">Element</th>
-        <th className="px-6 py-3 text-left">WLP</th>
-        <th className="px-6 py-3 text-left">Mobile No</th>
-        <th className="px-6 py-3 text-left">Created Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      {fetchwlp?.wlps?.length > 0 ? (
-        fetchwlp.wlps.map((wlp, idx) => (
-          wlp.assign_element_list.map((element, eIdx) => (
-            <tr
-              key={`${wlp._id}-${eIdx}`}
-              className={`${(idx + eIdx) % 2 === 0 ? "bg-[#111111]" : "bg-[#1E1E1E]"
-                } hover:bg-yellow-400/10 transition`}
-            >
-              <td className="px-6 py-3 text-yellow-300">{idx + 1}</td>
-              <td className="px-6 py-3 text-gray-300">
-                {element.elementName || "-"}
-              </td>
-              <td className="px-6 py-3 text-gray-300">
-                {wlp.organizationName || "-"}
-              </td>
-              <td className="px-6 py-3 text-gray-300">
-                {wlp.mobileNumber || "-"}
-              </td>
-              <td className="px-6 py-3 text-gray-300">
-                {wlp.createdAt ? new Date(wlp.createdAt).toLocaleDateString() : "-"}
-              </td>
-            </tr>
-          ))
-        ))
-      ) : (
-        <tr>
-          <td colSpan={5} className="text-center text-gray-400 py-4">
-            No data found.
-          </td>
-        </tr>
-      )}
-    </tbody>
-  </table>
-</div>
+          <div className="overflow-x-auto rounded-lg">
+            <table className="min-w-full text-sm">
+              <thead className="bg-yellow-400 text-black">
+                <tr>
+                  <th className="px-6 py-3 text-left">Si No</th>
+                  <th className="px-6 py-3 text-left">Element Name</th>
+                  <th className="px-6 py-3 text-left">Name(Manufacturer)</th>
+                  <th className="px-6 py-3 text-left">Business Name(Manufacturer)</th>
 
+                </tr>
+              </thead>
+              <tbody>
+                {allfetchlist.length > 0 ? (
+                  allfetchlist.map((item, idx) => (
+                    <tr
+                      key={item._id}
+                      className={`${idx % 2 === 0 ? "bg-[#111111]" : "bg-[#1E1E1E]"
+                        } hover:bg-yellow-400/10 transition`}
+                    >
+                      <td className="px-6 py-3 text-yellow-300">{idx + 1}</td>
+
+                      {item.assign_element_list.map((i) => {
+                        return (
+                          <td className="px-6 py-3 text-gray-300">{i.elementName} </td>
+                        )
+                      })
+                        || "-"}
+
+                      <td className="px-6 py-3 text-gray-300">
+                        {item.manufacturer_Name || "-"}
+                      </td>
+                      <td className="px-6 py-3 text-gray-300">
+                        {item.business_Name
+                          || "-"}
+                      </td>
+
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="text-center text-gray-400 py-4">
+                      No data found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
           <p className="text-gray-400 text-sm mt-4">
             Showing {filteredData.length} of {assignedData.length} entries
@@ -219,7 +195,7 @@ function AdminElementAsignList() {
         </motion.div>
       </div>
 
-      {/* Modernized Modal */}
+      {/* Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
@@ -235,24 +211,24 @@ function AdminElementAsignList() {
               exit={{ y: -50, opacity: 0 }}
             >
               <h3 className="text-2xl font-bold text-yellow-400 mb-6 text-center">
-                Assign Element
+                Assign Element to Dealer
               </h3>
 
-              {/* Select WLPs */}
+              {/* Select Dealers */}
               <label className="block mb-3 font-semibold text-gray-300">
-                Choose WLP(s)
+                Choose Dealer(s)
               </label>
               <div className="grid grid-cols-2 gap-3 mb-6 max-h-40 overflow-y-auto">
-                {wlps.map((wlp) => (
+                {dealers.map((dealer) => (
                   <div
-                    key={wlp._id}
-                    onClick={() => toggleSelection(wlp._id)}
-                    className={`p-3 rounded-lg text-center cursor-pointer border transition ${selectedWlps.includes(wlp._id)
+                    key={dealer._id}
+                    onClick={() => toggleSelection(dealer._id)}
+                    className={`p-3 rounded-lg text-center cursor-pointer border transition ${selectedDealers.includes(dealer._id)
                       ? "bg-yellow-500 text-black border-yellow-500 shadow-md"
                       : "bg-black border-yellow-400 text-yellow-300 hover:bg-yellow-400 hover:text-black"
                       }`}
                   >
-                    {wlp.organizationName}
+                    {dealer.manufacturer_Name}
                   </div>
                 ))}
               </div>
@@ -297,4 +273,4 @@ function AdminElementAsignList() {
   );
 }
 
-export default AdminElementAsignList;
+export default WlpElementAssignList;

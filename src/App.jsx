@@ -3,8 +3,6 @@ import { Route, Routes } from "react-router-dom"
 import Login from "./pages/Login"
 import SuperAdminDashboard from "./pages/SuperAdminDashboard"
 import AdminDashboard from "./AdminPage/AdminDashboard"
-import WlpDashboadrd from "./pages/WlpDashboadrd"
-import ManufactureDashboard from "./pages/ManufactureDashboard"
 import AdminList from "./pages/AdminList"
 import CreateAdmin from "./pages/CreateAdmin"
 import { ToastContainer } from "react-toastify";
@@ -21,6 +19,12 @@ import AdminElementList from "./AdminPage/AdminElementList"
 import AdminElementAsignList from "./AdminPage/AdminElementAsignList"
 import CreateWlp from "./AdminPage/CreateWlp"
 import Wlplist from "./AdminPage/Wlplist"
+import WlpDashboard from "./WlpPage/WlpDashboard"
+import WlpElementList from "./WlpPage/WlpElementList"
+import WlpElementAssignList from "./WlpPage/WlpElementAssignList"
+import ManufactureList from "./WlpPage/ManufactureList"
+import CreateManufacture from "./WlpPage/CreateManufacture"
+import ManufactureDashboard from "./ManufacturePage/ManufactureDashboard"
 
 
 
@@ -36,8 +40,8 @@ function App() {
         {user && (
           <>
             <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
-            <Route path="/wlp/dashboard" element={<WlpDashboadrd />} />
-            <Route path="/manufacture/dashboard" element={<ManufactureDashboard />} />
+
+            
             <Route path="/superadmin/adminlist" element={<AdminList />} />
             <Route path="/superadmin/createadmin" element={<CreateAdmin />} />
             <Route path="/superadmin/element" element={<SuperAdminElement />} />
@@ -54,8 +58,18 @@ function App() {
             <Route path="/admin/element" element={<AdminElementList />} />
             <Route path="/admin/assign-element" element={<AdminElementAsignList />} />
             <Route path="/admin/createwlp" element={<CreateWlp />} />
-            <Route path="/admin/wlplist" element={<Wlplist/>} />
+            <Route path="/admin/wlplist" element={<Wlplist />} />
 
+            {/* Wlp Routes */}
+            <Route path="/wlp/dashboard" element={<WlpDashboard />} />
+
+            <Route path="/wlp/Element-List" element={<WlpElementList />} />
+            <Route path="/wlp/assign-element" element={<WlpElementAssignList />} />
+             <Route path="/wlp/manufacturelist" element={<ManufactureList/>} />
+             <Route path="/wlp/createmanufacture" element={<CreateManufacture/>} />
+
+             {/* Manufacture Routes */}
+             <Route path="/manufacturer/dashboard" element={<ManufactureDashboard />} />
           </>
         )}
       </Routes>
