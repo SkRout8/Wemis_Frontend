@@ -219,6 +219,12 @@ export default function Login() {
             case "wlp":
               navigate("/wlp/dashboard");
               break;
+            case "distibutor":
+              navigate("/distibutor/dashboard");
+              break;
+            case "oem":
+              navigate("/Oem/dashboard");
+              break;
             default:
               navigate("/manufacturer/dashboard");
           }
@@ -320,9 +326,8 @@ export default function Login() {
               whileTap={{ scale: 0.97 }}
               type="submit"
               disabled={loading}
-              className={`w-full bg-black text-yellow-400 border border-yellow-400 py-3 rounded-lg ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              className={`w-full bg-black text-yellow-400 border border-yellow-400 py-3 rounded-lg ${loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
             >
               {loading ? "Logging in..." : "Login"}
             </motion.button>

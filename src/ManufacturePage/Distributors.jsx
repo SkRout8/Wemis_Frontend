@@ -222,6 +222,53 @@ function Distributors() {
     setNewDistributor((prev) => ({ ...prev, district }));
   };
 
+  // ✅ Edit Modal: Country Change
+  const handleEditCountryChange = (e) => {
+    const country = e.target.value;
+    let nextGenericStates = [];
+
+    if (country === "USA") nextGenericStates = USA_STATES;
+    if (country === "China") nextGenericStates = CHINA_PROVINCES;
+
+    setEditData((prev) => ({
+      ...prev,
+      country,
+      state: "",
+      district: "",
+    }));
+    setIndiaDistricts([]);
+    setGenericStates(nextGenericStates);
+  };
+
+  // ✅ Edit Modal: State Change
+  const handleEditStateChange = (e) => {
+    const stateVal = e.target.value;
+
+    setEditData((prev) => ({
+      ...prev,
+      state: stateVal,
+      district: "",
+    }));
+
+    if (editData.country === "India") {
+      const found = indiaStates.find(
+        (s) => s.name.toLowerCase() === stateVal.toLowerCase()
+      );
+      if (found?.code) {
+        const dists = getDistricts(found.code);
+        setIndiaDistricts(dists || []);
+      } else {
+        setIndiaDistricts([]);
+      }
+    }
+  };
+
+  // ✅ Edit Modal: District Change
+  const handleEditDistrictChange = (e) => {
+    const district = e.target.value;
+    setEditData((prev) => ({ ...prev, district }));
+  };
+
   // ✅ Delete
   const handleDelete = async (id) => {
     Swal.fire({
@@ -240,12 +287,10 @@ function Distributors() {
             { id: id },
             { headers: { Authorization: `Bearer ${tkn}` } } // Fixed template literal
           );
-          if (response.status === 200) {
-            toast.success("Distributor deleted successfully");
-            setDistributors((prev) => prev.filter((d) => d._id !== id));
-          } else {
-            toast.error("Error deleting Distributor");
-          }
+
+          toast.success("Distributor deleted successfully");
+          setDistributors((prev) => prev.filter((d) => d._id !== id));
+
         } catch (error) {
           toast.error("Delete failed");
         }
@@ -263,17 +308,18 @@ function Distributors() {
     setLoadingEdit(true);
     try {
       const response = await axios.post(
-        "https://wemis-backend.onrender.com/wlp/findDistributorById",
+        "https://wemis-backend.onrender.com/manufactur/fetchDistributorById",
         { distributorId: id },
-        { headers: { Authorization: `Bearer ${tkn}` } } // Fixed template literal
+        { headers: { Authorization: `Bearer ${tkn}` } }
       );
 
-      if (response.data?.distributor) {
-        setEditData(response.data.distributor);
-        setIsEditModalOpen(true);
-      } else {
-        toast.error("Failed to fetch Distributor details");
-      }
+      console.log("Edit API response:", response.data);
+
+      // Some APIs return {distributor: {...}}, some return {...} directly
+      const distributorData = response.data.single || response.data;
+
+      setEditData(distributorData);
+      setIsEditModalOpen(true);
     } catch (err) {
       toast.error("Error loading Distributor details");
     } finally {
@@ -298,9 +344,9 @@ function Distributors() {
     e.preventDefault();
     try {
       const response = await axios.post(
-        "https://wemis-backend.onrender.com/wlp/editDistributor",
+        "https://wemis-backend.onrender.com/manufactur/editDistributor",
         { ...editData, distributorId: editData._id },
-        { headers: { Authorization: `Bearer ${tkn}` } } // Fixed template literal
+        { headers: { Authorization: `Bearer ${tkn}` } }
       );
 
       if (response.status === 200) {
@@ -438,9 +484,8 @@ function Distributors() {
               data.map((d, index) => (
                 <tr
                   key={d._id}
-                  className={`${
-                    index % 2 === 0 ? "bg-black" : "bg-gray-800"
-                  } border-t border-gray-700`} // Fixed template literal
+                  className={`${index % 2 === 0 ? "bg-black" : "bg-gray-800"
+                    } border-t border-gray-700`} // Fixed template literal
                 >
                   <td className="px-4 py-2">{index + 1}</td>
 
@@ -774,44 +819,15 @@ function Distributors() {
       {/* Edit Modal */}
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-6 rounded-xl w-[700px] max-h-[90vh] overflow-y-auto border border-yellow-500">
+          <div className="bg-gray-900 p-6 rounded-xl w-[900px] max-h-[90vh] overflow-y-auto border border-yellow-500">
             <h2 className="text-xl font-bold text-yellow-400 mb-6">
               Edit Distributor Details
             </h2>
             {loadingEdit ? (
               <p className="text-gray-300">Loading...</p>
             ) : (
-              <form onSubmit={handleSave} className="space-y-6">
-                <div>
-                  <label className="block mb-1">Distributor Name *</label>
-                  <input
-                    type="text"
-                    name="distributor_Name"
-                    value={editData.distributor_Name || ""}
-                    onChange={handleEditChange}
-                    className="w-full p-2 rounded bg-black border border-yellow-500"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1">Email *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={editData.email || ""}
-                    onChange={handleEditChange}
-                    className="w-full p-2 rounded bg-black border border-yellow-500"
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1">Mobile *</label>
-                  <input
-                    type="text"
-                    name="mobile_Number"
-                    value={editData.mobile_Number || ""}
-                    onChange={handleEditChange}
-                    className="w-full p-2 rounded bg-black border border-yellow-500"
-                  />
-                </div>
+              <form onSubmit={handleSave} className="grid grid-cols-2 gap-4">
+                {/* Business Name */}
                 <div>
                   <label className="block mb-1">Business Name *</label>
                   <input
@@ -820,25 +836,259 @@ function Distributors() {
                     value={editData.business_Name || ""}
                     onChange={handleEditChange}
                     className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
                   />
                 </div>
+
+                {/* Distributor Name */}
                 <div>
-                  <label className="block mb-1">Logo</label>
+                  <label className="block mb-1">
+                    Distributor / Owner Name *
+                  </label>
                   <input
-                    type="file"
-                    name="logo"
+                    type="text"
+                    name="contact_Person_Name"
+                    value={editData.contact_Person_Name || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block mb-1">Email *</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editData.email || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  />
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className="block mb-1">Gender *</label>
+                  <select
+                    name="gender"
+                    value={editData.gender || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  >
+                    <option value="">Select Gender</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+
+                {/* Mobile */}
+                <div>
+                  <label className="block mb-1">Mobile *</label>
+                  <input
+                    type="text"
+                    name="mobile"
+                    value={editData.mobile || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  />
+                </div>
+
+                {/* DOB */}
+                <div>
+                  <label className="block mb-1">Date of Birth *</label>
+                  <input
+                    type="date"
+                    name="date_of_Birth"
+                    value={editData.date_of_Birth || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  />
+                </div>
+
+                {/* Age */}
+                <div>
+                  <label className="block mb-1">Age</label>
+                  <input
+                    type="number"
+                    name="age"
+                    value={editData.age || ""}
                     onChange={handleEditChange}
                     className="w-full p-2 rounded bg-black border border-yellow-500"
                   />
-                  {editData.logo && (
-                    <img
-                      src={editData.logo}
-                      alt="Logo"
-                      className="mt-2 w-24 h-24 rounded object-cover border border-yellow-500"
-                    />
-                  )}
                 </div>
-                <div className="flex justify-end gap-4">
+
+                {/* Mapped Device */}
+                <div>
+                  <label className="block mb-1">Mapped Device</label>
+                  <select
+                    name="Map_Device_Edit"
+                    value={editData.Map_Device_Edit || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                  >
+                    <option value="">Select Option</option>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                  </select>
+                </div>
+
+                {/* PAN */}
+                <div>
+                  <label className="block mb-1">PAN Number *</label>
+                  <input
+                    type="text"
+                    name="pAN_Number"
+                    value={editData.pAN_Number || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  />
+                </div>
+
+                {/* Occupation */}
+                <div>
+                  <label className="block mb-1">Occupation *</label>
+                  <input
+                    type="text"
+                    name="occupation"
+                    value={editData.occupation || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  />
+                </div>
+
+                {/* Advance Payment */}
+                <div>
+                  <label className="block mb-1">Advance Payment *</label>
+                  <input
+                    type="number"
+                    name="advance_Payment"
+                    value={editData.advance_Payment || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  />
+                </div>
+
+                {/* Languages */}
+                <div>
+                  <label className="block mb-1">Languages Known *</label>
+                  <input
+                    type="text"
+                    name="languages_Known"
+                    value={editData.languages_Known || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  />
+                </div>
+
+                {/* Country */}
+                <div>
+                  <label className="block mb-1">Country *</label>
+                  <select
+                    name="country"
+                    value={editData.country || ""}
+                    onChange={handleEditCountryChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                  >
+                    <option value="">Select Country</option>
+                    {COUNTRIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* State */}
+                <div>
+                  <label className="block mb-1">State / Province *</label>
+                  <select
+                    name="state"
+                    value={editData.state || ""}
+                    onChange={handleEditStateChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required
+                    disabled={!editData.country}
+                  >
+                    <option value="">
+                      {editData.country
+                        ? "Select State/Province"
+                        : "Choose Country first"}
+                    </option>
+
+                    {editData.country === "India" &&
+                      indiaStates.map((s) => (
+                        <option key={s.code} value={s.name}>
+                          {s.name}
+                        </option>
+                      ))}
+
+                    {editData.country === "USA" &&
+                      USA_STATES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    {editData.country === "China" &&
+                      CHINA_PROVINCES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* District */}
+                <div>
+                  <label className="block mb-1">
+                    {editData.country === "India"
+                      ? "District *"
+                      : "District (N/A)"}
+                  </label>
+                  <input
+                    name="district"
+                    value={editData.district || ""}
+                    onChange={handleEditDistrictChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    required={editData.country === "India"}
+                    disabled={
+                      !editData.country ||
+                      !editData.state ||
+                      editData.country !== "India"
+                    }
+                  />
+
+
+                </div>
+
+                {/* Address */}
+                <div className="col-span-2">
+                  <label className="block mb-1">Address *</label>
+                  <textarea
+                    name="address"
+                    value={editData.address || ""}
+                    onChange={handleEditChange}
+                    className="w-full p-2 rounded bg-black border border-yellow-500"
+                    rows="3"
+                    required
+                  ></textarea>
+                </div>
+
+                {/* Logo */}
+
+
+                {/* Buttons */}
+                <div className="col-span-2 flex justify-end gap-4 mt-4">
                   <button
                     type="button"
                     onClick={() => setIsEditModalOpen(false)}
