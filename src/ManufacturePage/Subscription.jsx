@@ -15,14 +15,13 @@ const FIND_SUBSCRIPTION_BY_ID_API =
 const EDIT_SUBSCRIPTION_API =
   "https://wemis-backend.onrender.com/manufactur/editSubscriptionById";
 
-// --- Configurations ---
+// --- Constants ---
 const BILLING_CYCLE_DAYS = [
   "3 days", "7 days", "30 days", "60 days", "90 days", "120 days", "150 days",
   "180 days", "210 days", "240 days", "270 days", "300 days", "330 days",
 ];
 const PACKAGE_TYPES = ["TRACKER", "OFFERED"];
 
-// --- Initial State ---
 const initialSubscriptionState = {
   packageType: PACKAGE_TYPES[0],
   packageName: "",
@@ -33,7 +32,6 @@ const initialSubscriptionState = {
   subscriptionId: "",
 };
 
-// --- Helper ---
 const formatDate = (dateString) => {
   if (!dateString) return "N/A";
   try {
@@ -57,23 +55,25 @@ function Subscription() {
   const [message, setMessage] = useState("");
   const [submissionLoading, setSubmissionLoading] = useState(false);
 
-  // --- Fetch Subscriptions ---
+  // Fetch all subscriptions
   const fetchSubscriptions = async () => {
     if (!tkn) return toast.error("Token not found. Please log in.");
     setLoading(true);
     try {
-      const res = await axios.post(FETCH_SUBSCRIPTIONS_API, {}, {
-        headers: { Authorization: `Bearer ${tkn}` },
-      });
+      const res = await axios.post(
+        FETCH_SUBSCRIPTIONS_API,
+        {},
+        { headers: { Authorization: `Bearer ${tkn}` } }
+      );
       const data = res.data.allSubscription || [];
-      const sanitized = data.map(sub => ({
+      const sanitized = data.map((sub) => ({
         ...sub,
         price: parseFloat(sub.price) || 0,
         renewal: sub.renewal === true || sub.renewalAutomatic === true,
       }));
       setSubscriptions(sanitized);
     } catch (err) {
-      console.error("Fetch subscriptions error:", err);
+      console.error("Fetch error:", err);
       toast.error("Failed to fetch subscriptions.");
     } finally {
       setLoading(false);
@@ -84,22 +84,20 @@ function Subscription() {
     if (tkn) fetchSubscriptions();
   }, [tkn]);
 
-  // --- Handle Form Change ---
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  // --- Handle Edit Click ---
   const handleEditClick = async (id) => {
     if (!tkn) return toast.error("Missing token.");
 
     setIsModalOpen(true);
     setIsEditMode(true);
-    setMessage("Fetching subscription details...");
+    setMessage("Loading subscription...");
     setSubmissionLoading(true);
 
     try {
@@ -124,21 +122,21 @@ function Subscription() {
         packageType: subData.packageType || PACKAGE_TYPES[0],
         packageName: subData.packageName || "",
         billingCycle: subData.billingCycle || BILLING_CYCLE_DAYS[0],
-        price: subData.price?.toString() || "0", 
+        price: subData.price?.toString() || "0",
         description: subData.description || "",
         renewal: subData.renewal === true || subData.renewalAutomatic === true,
       });
       setMessage("");
     } catch (err) {
-      console.error("Edit fetch error:", err);
+      console.error("Edit error:", err);
       toast.error("Failed to fetch subscription details.");
-      setMessage("❌ Failed to load subscription data.");
+      setMessage("❌ Could not load subscription.");
     } finally {
       setSubmissionLoading(false);
     }
   };
 
-  // --- Create or Edit Submit (FIXED: Added unique packageName generation) ---
+  // --- Create or Edit Submit (FIXED: Removed all suffix concatenation) ---
   const handleCreateOrEditSubmit = async (e) => {
     e.preventDefault();
     if (!tkn) return toast.error("Missing token.");
@@ -150,7 +148,7 @@ function Subscription() {
       const apiEndpoint = isEditMode ? EDIT_SUBSCRIPTION_API : SUBSCRIPTION_CREATE_API;
       const payload = { ...formData };
 
-      // Clean payload
+      // Type conversion
       payload.price = parseFloat(payload.price);
       payload.renewal = Boolean(payload.renewal);
 
@@ -158,16 +156,11 @@ function Subscription() {
         payload.subscriptionId = formData.subscriptionId;
         delete payload._id;
       } else {
-        // --- FIX FOR DUPLICATE CREATION ISSUE ---
-        // Delete IDs for creation
         delete payload._id;
         delete payload.subscriptionId;
-        
-        // Append a timestamp suffix to ensure the package name is UNIQUE.
-        // This is a common requirement for subscription packages.
-        const uniqueSuffix = Date.now();
-        payload.packageName = `${payload.packageName.trim()} (${payload.packageType}-${uniqueSuffix})`;
-        // --- END FIX ---
+
+        // ✅ FINAL FIX: Use the package name exactly as the user typed it (just trim spaces)
+        payload.packageName = formData.packageName.trim(); 
       }
 
       const res = await axios.post(apiEndpoint, payload, {
@@ -179,22 +172,23 @@ function Subscription() {
 
       if (res.status === 200 || res.status === 201) {
         toast.success(`Subscription ${isEditMode ? "updated" : "created"} successfully!`);
-        // Use await to ensure subscriptions are fetched before closing the modal
-        await fetchSubscriptions(); 
+        await fetchSubscriptions();
         closeModal();
       } else {
-         // Handle non-200/201 response status gracefully
-         const errorMessage = res.data?.message || "Unexpected server response.";
-         setMessage(`❌ Submission failed: ${errorMessage}`);
-         toast.error(`Submission failed: ${errorMessage}`);
+        const errorMessage = res.data?.message || "Unexpected server response.";
+        toast.error(errorMessage);
+        setMessage(`❌ ${errorMessage}`);
       }
     } catch (err) {
-      // Log the specific error from the backend/network
       const backendError = err.response?.data?.message || err.message;
       console.error("Submit error:", err.response?.data || err.message);
-
+      
+      if (backendError && backendError.includes("duplicate") || backendError.includes("unique")) {
+          toast.error("Package name already exists. Please choose a different name.");
+      } else {
+          toast.error(backendError);
+      }
       setMessage(`❌ Submission failed: ${backendError}`);
-      toast.error(backendError);
     } finally {
       setSubmissionLoading(false);
     }
@@ -218,13 +212,13 @@ function Subscription() {
     <div className="bg-gray-900 min-h-screen text-white">
       <Toaster position="top-right" />
       <ManufactureNavbar />
-      
+
       <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-3xl font-extrabold text-yellow-400 mb-6 border-b border-gray-700 pb-3">
           Subscription Management
         </h1>
 
-        {/* --- Search + Create --- */}
+        {/* --- Search & Create --- */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div className="relative w-full sm:w-80">
             <input
@@ -236,6 +230,7 @@ function Subscription() {
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           </div>
+
           <button
             onClick={() => {
               setIsModalOpen(true);
@@ -253,7 +248,7 @@ function Subscription() {
           <h2 className="text-xl font-bold text-yellow-400 p-4 border-b border-gray-700 flex items-center gap-2">
             <Package size={20} /> Active Subscriptions
           </h2>
-          
+
           <div className="overflow-x-auto">
             {loading ? (
               <p className="p-6 text-center text-yellow-400">Loading subscriptions...</p>
@@ -263,8 +258,10 @@ function Subscription() {
               <table className="min-w-full divide-y divide-gray-700">
                 <thead className="bg-gray-700">
                   <tr>
-                    {["Package Name", "Type", "Price", "Cycle", "Renewal", "Status", "Created", "Actions"].map((head) => (
-                      <th key={head} className="px-6 py-3 text-left text-xs font-semibold text-yellow-400 uppercase tracking-wider whitespace-nowrap">{head}</th>
+                    {["Package Name", "Type", "Price", "Cycle", "Renewal", "Created", "Actions"].map((head) => (
+                      <th key={head} className="px-6 py-3 text-left text-xs font-semibold text-yellow-400 uppercase tracking-wider whitespace-nowrap">
+                        {head}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -276,15 +273,8 @@ function Subscription() {
                       <td className="px-6 py-4 text-green-400 font-mono whitespace-nowrap">${(s.price || 0).toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{s.billingCycle}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                         <span className={s.renewal ? "text-yellow-400" : "text-gray-400"}>
-                           {s.renewal ? "Automatic" : "Manual"}
-                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-block px-3 py-1 text-xs rounded-full font-semibold ${
-                            s.status === "Active" ? "bg-green-900/50 text-green-400" : "bg-red-900/50 text-red-400"
-                        }`}>
-                          {s.status || "N/A"}
+                        <span className={s.renewal ? "text-yellow-400" : "text-gray-400"}>
+                          {s.renewal ? "Automatic" : "Manual"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-400 whitespace-nowrap">{formatDate(s.createdAt)}</td>
@@ -309,7 +299,6 @@ function Subscription() {
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 p-6 sm:p-8 rounded-xl w-full max-w-md border border-yellow-500 shadow-2xl overflow-y-auto max-h-[95vh]">
-              
               <div className="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
                 <h2 className="text-2xl font-bold text-yellow-400">
                   {isEditMode ? "Edit Subscription ✏️" : "Create Subscription 💳"}
@@ -320,7 +309,6 @@ function Subscription() {
               </div>
 
               <form onSubmit={handleCreateOrEditSubmit} className="space-y-4">
-                
                 {/* Package Name */}
                 <div>
                   <label htmlFor="packageName" className="block mb-1 text-gray-300 font-medium">Package Name *</label>
@@ -328,9 +316,7 @@ function Subscription() {
                     id="packageName"
                     type="text"
                     name="packageName"
-                    // In edit mode, we show the full generated name. In create mode,
-                    // we show the initial empty string or the user's input.
-                    value={isEditMode ? formData.packageName : formData.packageName.split(' (')[0]}
+                    value={formData.packageName}
                     onChange={handleChange}
                     required
                     className="w-full p-3 bg-gray-800 border border-yellow-500/50 rounded-lg text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
@@ -339,35 +325,36 @@ function Subscription() {
 
                 {/* Package Type + Billing Cycle */}
                 <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="w-full sm:w-1/2">
-                        <label htmlFor="packageType" className="block mb-1 text-gray-300 font-medium">Package Type *</label>
-                        <select
-                            id="packageType"
-                            name="packageType"
-                            value={formData.packageType}
-                            onChange={handleChange}
-                            required
-                            className="w-full p-3 bg-gray-800 border border-yellow-500/50 rounded-lg text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-                        >
-                            {PACKAGE_TYPES.map((t) => (
-                            <option key={t}>{t}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="w-full sm:w-1/2">
-                        <label htmlFor="billingCycle" className="block mb-1 text-gray-300 font-medium">Billing Cycle *</label>
-                        <select
-                            id="billingCycle"
-                            name="billingCycle"
-                            value={formData.billingCycle}
-                            onChange={handleChange}
-                            className="w-full p-3 bg-gray-800 border border-yellow-500/50 rounded-lg text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
-                        >
-                            {BILLING_CYCLE_DAYS.map((d) => (
-                            <option key={d}>{d}</option>
-                            ))}
-                        </select>
-                    </div>
+                  <div className="w-full sm:w-1/2">
+                    <label htmlFor="packageType" className="block mb-1 text-gray-300 font-medium">Package Type *</label>
+                    <select
+                      id="packageType"
+                      name="packageType"
+                      value={formData.packageType}
+                      onChange={handleChange}
+                      required
+                      className="w-full p-3 bg-gray-800 border border-yellow-500/50 rounded-lg text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                    >
+                      {PACKAGE_TYPES.map((t) => (
+                        <option key={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="w-full sm:w-1/2">
+                    <label htmlFor="billingCycle" className="block mb-1 text-gray-300 font-medium">Billing Cycle *</label>
+                    <select
+                      id="billingCycle"
+                      name="billingCycle"
+                      value={formData.billingCycle}
+                      onChange={handleChange}
+                      className="w-full p-3 bg-gray-800 border border-yellow-500/50 rounded-lg text-white focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500"
+                    >
+                      {BILLING_CYCLE_DAYS.map((d) => (
+                        <option key={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* Price */}
@@ -386,25 +373,25 @@ function Subscription() {
                   />
                 </div>
 
-                {/* Renewal Switch (Enhanced Look) */}
+                {/* Renewal */}
                 <div className="flex items-center justify-between bg-gray-800 border border-yellow-500/50 rounded-lg p-3">
-                    <label htmlFor="renewal-switch" className="text-gray-300 font-medium cursor-pointer">
-                        Renewal Type:{" "}
-                        <span className="font-semibold text-yellow-300">
-                          {formData.renewal ? "Automatic" : "Manual"}
-                        </span>
-                    </label>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            id="renewal-switch"
-                            type="checkbox"
-                            name="renewal"
-                            checked={formData.renewal}
-                            onChange={handleChange}
-                            className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
-                    </label>
+                  <label htmlFor="renewal-switch" className="text-gray-300 font-medium cursor-pointer">
+                    Renewal Type:{" "}
+                    <span className="font-semibold text-yellow-300">
+                      {formData.renewal ? "Automatic" : "Manual"}
+                    </span>
+                  </label>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      id="renewal-switch"
+                      type="checkbox"
+                      name="renewal"
+                      checked={formData.renewal}
+                      onChange={handleChange}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+                  </label>
                 </div>
 
                 {/* Description */}
@@ -420,27 +407,33 @@ function Subscription() {
                   ></textarea>
                 </div>
 
-                {/* Message */}
                 {message && (
-                  <p className={`text-center p-3 rounded-md text-sm ${message.includes("❌") ? "bg-red-700/30 text-red-400 border border-red-500" : "bg-green-700/30 text-green-400 border border-green-500"}`}>
+                  <p
+                    className={`text-center p-3 rounded-md text-sm ${
+                      message.includes("❌")
+                        ? "bg-red-700/30 text-red-400 border border-red-500"
+                        : "bg-green-700/30 text-green-400 border border-green-500"
+                    }`}
+                  >
                     {message}
                   </p>
                 )}
 
-                {/* Submit */}
                 <button
                   type="submit"
                   disabled={submissionLoading}
                   className={`w-full py-3 font-bold rounded-lg shadow-md transition-all duration-300 ${
                     submissionLoading
                       ? "bg-yellow-300 text-black cursor-not-allowed opacity-70"
-                      : "bg-yellow-400 hover:bg-yellow-500 text-black"
+                      : "bg-yellow-500 hover:bg-yellow-400 text-black"
                   }`}
                 >
                   {submissionLoading
-                    ? "Processing..."
+                    ? isEditMode
+                      ? "Updating..."
+                      : "Creating..."
                     : isEditMode
-                    ? "Save Changes"
+                    ? "Update Subscription"
                     : "Create Subscription"}
                 </button>
               </form>
