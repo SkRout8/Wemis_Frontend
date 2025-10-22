@@ -22,13 +22,18 @@ const BILLING_CYCLE_DAYS = [
 ];
 const PACKAGE_TYPES = ["TRACKER", "OFFERED"];
 
+// --- New Renewal Constants for String Type ---
+const RENEWAL_AUTOMATIC_STRING = "Automatic";
+const RENEWAL_MANUAL_STRING = "Manual";
+
 const initialSubscriptionState = {
   packageType: PACKAGE_TYPES[0],
   packageName: "",
   billingCycle: BILLING_CYCLE_DAYS[0],
   price: 0,
+  // We'll use a boolean state in the form, but convert it to a String for the API
+  renewal: true, // true means Automatic
   description: "",
-  renewal: true,
   subscriptionId: "",
 };
 
@@ -55,6 +60,16 @@ function Subscription() {
   const [message, setMessage] = useState("");
   const [submissionLoading, setSubmissionLoading] = useState(false);
 
+  // Helper function to check if renewal is automatic (using string comparison)
+  const isRenewalAutomatic = (renewalValue) => {
+    if (typeof renewalValue === 'string') {
+        // ✅ FIX: Use strict string comparison
+        return renewalValue.toLowerCase() === RENEWAL_AUTOMATIC_STRING.toLowerCase();
+    }
+    // Fallback for boolean values (shouldn't happen after the fix, but good for safety)
+    return renewalValue === true;
+  }
+
   // Fetch all subscriptions
   const fetchSubscriptions = async () => {
     if (!tkn) return toast.error("Token not found. Please log in.");
@@ -69,7 +84,8 @@ function Subscription() {
       const sanitized = data.map((sub) => ({
         ...sub,
         price: parseFloat(sub.price) || 0,
-        renewal: sub.renewal === true || sub.renewalAutomatic === true,
+        // ✅ FIX: The state 'renewal' will store a boolean (true/false) based on the string value from the backend
+        renewal: isRenewalAutomatic(sub.renewal), 
       }));
       setSubscriptions(sanitized);
     } catch (err) {
@@ -124,7 +140,8 @@ function Subscription() {
         billingCycle: subData.billingCycle || BILLING_CYCLE_DAYS[0],
         price: subData.price?.toString() || "0",
         description: subData.description || "",
-        renewal: subData.renewal === true || subData.renewalAutomatic === true,
+        // ✅ FIX: Convert string from backend to boolean for the form state
+        renewal: isRenewalAutomatic(subData.renewal),
       });
       setMessage("");
     } catch (err) {
@@ -136,7 +153,7 @@ function Subscription() {
     }
   };
 
-  // --- Create or Edit Submit (FIXED: Removed all suffix concatenation) ---
+  // --- Create or Edit Submit (FINAL FIX: Aligned with Mongoose Schema as String) ---
   const handleCreateOrEditSubmit = async (e) => {
     e.preventDefault();
     if (!tkn) return toast.error("Missing token.");
@@ -147,10 +164,14 @@ function Subscription() {
     try {
       const apiEndpoint = isEditMode ? EDIT_SUBSCRIPTION_API : SUBSCRIPTION_CREATE_API;
       const payload = { ...formData };
+      
+      // ✅ CORE FIX: Convert the boolean state to the required string value for the backend.
+      // This ensures the backend receives "Automatic" or "Manual" as a String.
+      payload.renewal = formData.renewal ? RENEWAL_AUTOMATIC_STRING : RENEWAL_MANUAL_STRING; 
 
-      // Type conversion
+      // Price conversion
       payload.price = parseFloat(payload.price);
-      payload.renewal = Boolean(payload.renewal);
+      
 
       if (isEditMode) {
         payload.subscriptionId = formData.subscriptionId;
@@ -158,9 +179,7 @@ function Subscription() {
       } else {
         delete payload._id;
         delete payload.subscriptionId;
-
-        // ✅ FINAL FIX: Use the package name exactly as the user typed it (just trim spaces)
-        payload.packageName = formData.packageName.trim(); 
+        payload.packageName = formData.packageName.trim(); // exact user input
       }
 
       const res = await axios.post(apiEndpoint, payload, {
@@ -182,12 +201,13 @@ function Subscription() {
     } catch (err) {
       const backendError = err.response?.data?.message || err.message;
       console.error("Submit error:", err.response?.data || err.message);
-      
-      if (backendError && backendError.includes("duplicate") || backendError.includes("unique")) {
+
+      if (backendError && (backendError.includes("duplicate") || backendError.includes("unique"))) {
           toast.error("Package name already exists. Please choose a different name.");
       } else {
           toast.error(backendError);
       }
+
       setMessage(`❌ Submission failed: ${backendError}`);
     } finally {
       setSubmissionLoading(false);
@@ -218,7 +238,7 @@ function Subscription() {
           Subscription Management
         </h1>
 
-        {/* --- Search & Create --- */}
+        {/* Search & Create */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div className="relative w-full sm:w-80">
             <input
@@ -243,7 +263,7 @@ function Subscription() {
           </button>
         </div>
 
-        {/* --- Table --- */}
+        {/* Table */}
         <div className="bg-gray-800 shadow-xl rounded-lg overflow-hidden border border-gray-700">
           <h2 className="text-xl font-bold text-yellow-400 p-4 border-b border-gray-700 flex items-center gap-2">
             <Package size={20} /> Active Subscriptions
@@ -274,7 +294,8 @@ function Subscription() {
                       <td className="px-6 py-4 whitespace-nowrap">{s.billingCycle}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={s.renewal ? "text-yellow-400" : "text-gray-400"}>
-                          {s.renewal ? "Automatic" : "Manual"}
+                          {/* ✅ FIX: Display correctly based on the boolean state 's.renewal' */}
+                          {s.renewal ? RENEWAL_AUTOMATIC_STRING : RENEWAL_MANUAL_STRING}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-400 whitespace-nowrap">{formatDate(s.createdAt)}</td>
@@ -295,7 +316,7 @@ function Subscription() {
           </div>
         </div>
 
-        {/* --- Modal --- */}
+        {/* Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-50 p-4">
             <div className="bg-gray-900 p-6 sm:p-8 rounded-xl w-full max-w-md border border-yellow-500 shadow-2xl overflow-y-auto max-h-[95vh]">
@@ -378,7 +399,8 @@ function Subscription() {
                   <label htmlFor="renewal-switch" className="text-gray-300 font-medium cursor-pointer">
                     Renewal Type:{" "}
                     <span className="font-semibold text-yellow-300">
-                      {formData.renewal ? "Automatic" : "Manual"}
+                      {/* ✅ FIX: Display based on the boolean state */}
+                      {formData.renewal ? RENEWAL_AUTOMATIC_STRING : RENEWAL_MANUAL_STRING}
                     </span>
                   </label>
                   <label className="relative inline-flex items-center cursor-pointer">
