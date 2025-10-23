@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useRef, useEffect, useContext } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Barcode,
@@ -14,11 +14,15 @@ import {
   ChevronDown,
   ChevronUp,
   QrCode,
+  LogOut,
 } from "lucide-react";
+import { UserAppContext } from "../contexts/UserAppProvider";
 
 const DistributorNavbar = () => {
   const [openMenu, setOpenMenu] = useState(null);
   const navRef = useRef(null);
+  const navigate = useNavigate();
+  const { logout } = useContext(UserAppContext); // Using context logout
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -35,15 +39,18 @@ const DistributorNavbar = () => {
     setOpenMenu(openMenu === menu ? null : menu);
   };
 
+  // Logout button handler
+  const handleLogout = () => {
+    logout(); // Call context logout to remove user/token
+    navigate("/"); // Redirect to login page
+  };
+
   return (
     <div className="bg-black text-white">
       {/* Top Navbar */}
       <header className="flex flex-col md:flex-row justify-between items-center bg-neutral-900 px-4 py-3 border-b border-yellow-400/40 gap-3">
         <div className="flex items-center gap-2">
-          {/* Logo (optional) */}
-          <span className="font-bold text-2xl text-yellow-400 tracking-wide">
-            WEMIS
-          </span>
+          <span className="font-bold text-2xl text-yellow-400 tracking-wide">WEMIS</span>
         </div>
         <div className="flex flex-wrap gap-3 items-center justify-center">
           <button className="px-4 py-1.5 bg-yellow-400 text-black font-semibold rounded-md hover:bg-yellow-300 transition w-full md:w-auto">
@@ -63,6 +70,14 @@ const DistributorNavbar = () => {
               className="w-9 h-9 rounded-full border border-yellow-400"
             />
           </div>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="px-4 py-1.5 bg-red-600 text-white font-semibold rounded-md hover:bg-red-500 transition w-full md:w-auto flex items-center gap-1"
+          >
+            <LogOut size={16} /> Logout
+          </button>
         </div>
       </header>
 
@@ -73,7 +88,7 @@ const DistributorNavbar = () => {
       >
         {/* Dashboard */}
         <Link
-          to="/distibutor/dashboard"
+          to="/distributor/dashboard"
           className="flex items-center gap-2 text-yellow-400 hover:text-white font-semibold uppercase tracking-wide"
         >
           <LayoutDashboard size={18} /> Dashboard
@@ -87,11 +102,7 @@ const DistributorNavbar = () => {
             tabIndex={0}
           >
             <Barcode size={18} /> Barcode
-            {openMenu === "barcode" ? (
-              <ChevronUp size={16} />
-            ) : (
-              <ChevronDown size={16} />
-            )}
+            {openMenu === "barcode" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
           {openMenu === "barcode" && (
             <div className="absolute left-0 mt-2 bg-neutral-900 border border-yellow-400/30 rounded-md shadow-lg z-30 w-48 md:w-56 overflow-auto">
@@ -141,11 +152,7 @@ const DistributorNavbar = () => {
             tabIndex={0}
           >
             <Users size={18} /> Members
-            {openMenu === "members" ? (
-              <ChevronUp size={16} />
-            ) : (
-              <ChevronDown size={16} />
-            )}
+            {openMenu === "members" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
           {openMenu === "members" && (
             <div className="absolute left-0 mt-2 bg-neutral-900 border border-yellow-400/30 rounded-md shadow-lg z-30 w-40 md:w-44 overflow-auto">
@@ -179,11 +186,7 @@ const DistributorNavbar = () => {
             tabIndex={0}
           >
             <Package size={18} /> Manage Device
-            {openMenu === "device" ? (
-              <ChevronUp size={16} />
-            ) : (
-              <ChevronDown size={16} />
-            )}
+            {openMenu === "device" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
           {openMenu === "device" && (
             <div className="absolute left-0 mt-2 bg-neutral-900 border border-yellow-400/30 rounded-md shadow-lg z-30 w-40 md:w-44 overflow-auto">

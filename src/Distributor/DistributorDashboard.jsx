@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useRef, useEffect, useContext } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Barcode,
@@ -18,7 +18,9 @@ import {
   QrCode,
   RotateCcw,
   Repeat,
+  LogOut,
 } from "lucide-react";
+import { UserAppContext } from "../contexts/UserAppProvider";
 
 const stats = [
   { title: "Total Dealer", value: "1", icon: <Users className="text-yellow-400" /> },
@@ -38,6 +40,8 @@ const stats = [
 const DistributorDashboard = () => {
   const [openMenu, setOpenMenu] = useState(null);
   const navRef = useRef(null);
+  const navigate = useNavigate();
+  const { logout } = useContext(UserAppContext);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -52,6 +56,11 @@ const DistributorDashboard = () => {
 
   const toggleMenu = (menu) => {
     setOpenMenu(openMenu === menu ? null : menu);
+  };
+
+  const handleLogout = () => {
+    logout(); // Call context logout
+    navigate("/"); // Redirect to login page
   };
 
   return (
@@ -86,6 +95,13 @@ const DistributorDashboard = () => {
               className="w-9 h-9 rounded-full border border-yellow-400"
             />
           </div>
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="px-4 py-1.5 bg-red-600 text-white font-semibold rounded-md hover:bg-red-500 transition flex items-center gap-1"
+          >
+            <LogOut size={16} /> Logout
+          </button>
         </div>
       </header>
 
@@ -96,7 +112,7 @@ const DistributorDashboard = () => {
       >
         {/* Dashboard */}
         <Link
-          to="/distibutor/dashboard"
+          to="/distributor/dashboard"
           className="flex items-center gap-2 text-yellow-400 hover:text-white font-semibold uppercase tracking-wide"
         >
           <LayoutDashboard size={18} /> Dashboard

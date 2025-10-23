@@ -98,6 +98,7 @@ function ManageBarcode() {
         {},
         { headers: { Authorization: `Bearer ${tkn}` } }
       );
+      console.log(res.data)
       if (res.data && res.data.allBarCods) {
         setBarcodeData(res.data.allBarCods);
       } else {

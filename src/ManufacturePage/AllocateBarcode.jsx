@@ -8,12 +8,15 @@ import toast, { Toaster } from "react-hot-toast";
 const UserAppContext = React.createContext({
   token: localStorage.getItem("token") || "MOCK_TOKEN_12345", // Mock fallback
 });
+// If you are sure you have the correct context file, uncomment this and remove the mock:
+// import { UserAppContext } from "../contexts/UserAppProvider"; 
 
 
-// --- API Endpoints (Kept as is) ---
+// --- API Endpoints (Updated) ---
 const ELEMENT_DATA_API = "https://wemis-backend.onrender.com/manufactur/fetchElementData";
 const AVAILABLE_BARCODES_API = "https://wemis-backend.onrender.com/manufactur/fetchAllBarCode";
-const DISTRIBUTOR_API = "https://wemis-backend.onrender.com/manufactur/findDistributorUnderManufactur";
+// 💡 DISTRIBUTOR_API now expects a state in the body
+const DISTRIBUTOR_API = "https://wemis-backend.onrender.com/manufactur/findDistributorUnderManufactur"; 
 const OEM_API = "https://wemis-backend.onrender.com/manufactur/findOemUnderManufactur";
 const DEALER_UNDER_DISTRIBUTOR_API = "https://wemis-backend.onrender.com/manufactur/findDelerUnderDistributor"; 
 const DEALER_UNDER_OEM_API = "https://wemis-backend.onrender.com/manufactur/findDelerUnderOem"; 
@@ -79,11 +82,11 @@ const MOCK_OPTIONS = {
       { value: "TN", label: "Tennessee" },
     ],
     IN: [
-      { value: "KA", label: "Karnataka" },
-      { value: "OD", label: "Odisha" },
-      { value: "MH", label: "Maharashtra" },
-      { value: "DL", label: "Delhi" },
-      { value: "TN", label: "Tamil Nadu" },
+      { value: "Karnataka", label: "Karnataka" },
+      { value: "Odisha", label: "Odisha" },
+      { value: "Maharashtra", label: "Maharashtra" },
+      { value: "Delhi", label: "Delhi" },
+      { value: "TamilNadu", label: "TamilNadu" },
     ],
     UK: [
       { value: "ENG", label: "England" },
@@ -159,12 +162,30 @@ function AllocateBarcode() {
     return MOCK_OPTIONS.statesByCountry[formData.country] || [];
   }, [formData.country]);
 
-  // Clear state when country changes
+  // Clear state and partners when country changes
   useEffect(() => {
-    setFormData((prev) => ({ ...prev, state: "" }));
+    setFormData((prev) => ({ 
+      ...prev, 
+      state: "",
+      distributor: "", // Clear distributor/OEM selection
+      oem: "",
+      dealer: "",
+    }));
+    setApiOptions((prev) => ({ 
+        ...prev, 
+        distributors: [], // Clear distributor options
+        dealers: [],
+    }));
   }, [formData.country]);
 
-  // ⬅️ FIX: Helper to find the partner name by ID for table rendering
+  // Clear dealer when distributor or oem changes
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, dealer: "" }));
+    setApiOptions((prev) => ({ ...prev, dealers: [] }));
+  }, [formData.distributor, formData.oem]);
+
+
+  // Helper to find the partner name by ID for table rendering
   const getPartnerName = useCallback((id, type) => {
     if (!id) return 'N/A';
 
@@ -195,7 +216,7 @@ function AllocateBarcode() {
         }
       );
       
-      const rawData = response.data.allBarcodes || [];
+      const rawData = response.data.allAllocatedBarcodes || [];
 
       if (Array.isArray(rawData)) {
         setAllocatedData(rawData);
@@ -213,7 +234,7 @@ function AllocateBarcode() {
     }
   }, [tkn]);
 
-  // --- API Fetch Element Data, Available Barcodes, Partners, Dealers (Kept as is) ---
+  // --- API Fetch Element Data, Available Barcodes (Kept as is) ---
   const fetchElementData = useCallback(async () => {
     if (!tkn) {
       return;
@@ -285,11 +306,21 @@ function AllocateBarcode() {
     }
   }, [tkn]);
 
-  const fetchDistributors = useCallback(async () => {
-    if (!tkn) return;
+  // 💡 UPDATED: Fetch Distributors based on selected state
+  const fetchDistributors = useCallback(async (selectedState) => {
+    if (!tkn || !selectedState) {
+      setApiOptions(prev => ({ ...prev, distributors: [] }));
+      setFormData(prev => ({ ...prev, distributor: "" }));
+      return;
+    }
+
     setIsLoadingPartners(true);
     try {
-      const response = await axios.post(DISTRIBUTOR_API, {}, { headers: { Authorization: `Bearer ${tkn}` } });
+      const response = await axios.post(
+        DISTRIBUTOR_API, 
+        { state: selectedState }, // 💡 Pass state in request body
+        { headers: { Authorization: `Bearer ${tkn}` } }
+      );
       const rawData = response.data.dist || response.data; 
 
       if (Array.isArray(rawData)) {
@@ -307,6 +338,7 @@ function AllocateBarcode() {
     } catch (error) {
       toast.error("Failed to load distributors.");
       console.error("Fetch distributors error:", error.response?.data || error.message);
+      setApiOptions(prev => ({ ...prev, distributors: [] }));
     } finally {
       setIsLoadingPartners(false);
     }
@@ -382,16 +414,27 @@ function AllocateBarcode() {
   }, [tkn]);
 
 
-  // --- Initial Data Fetch Effect ---
+  // --- Initial Data Fetch Effect (Modified to remove fetchDistributors) ---
   useEffect(() => {
     if (tkn) {
       fetchElementData();
       fetchAvailableBarcodes();
-      fetchDistributors();
-      fetchOems();
+      fetchOems(); // OEMs are not state-dependent, so fetch here
       fetchAllAllocatedData();
     }
-  }, [tkn, fetchElementData, fetchAvailableBarcodes, fetchDistributors, fetchOems, fetchAllAllocatedData]);
+  }, [tkn, fetchElementData, fetchAvailableBarcodes, fetchOems, fetchAllAllocatedData]);
+
+
+  // 💡 NEW useEffect: Trigger distributor fetch when state changes
+  useEffect(() => {
+    if (formData.state) {
+      fetchDistributors(formData.state);
+    } else {
+      // Clear distributors if state is cleared
+      setApiOptions(prev => ({ ...prev, distributors: [] }));
+      setFormData(prev => ({ ...prev, distributor: "" }));
+    }
+  }, [formData.state, fetchDistributors]);
 
 
   // Input change handler
@@ -410,6 +453,33 @@ function AllocateBarcode() {
       setApiOptions((prev) => ({ ...prev, dealers: [] })); 
       setErrors((prev) => ({ ...prev, distributor: "", oem: "", dealer: "" }));
       return;
+    }
+    
+    // Clear partner/dealer/dealer options if country/state changes
+    if (name === "country") {
+        setFormData((prev) => ({ 
+            ...prev, 
+            country: newValue, 
+            state: "", 
+            distributor: "",
+            oem: "",
+            dealer: "",
+        }));
+        setApiOptions((prev) => ({ ...prev, distributors: [], dealers: [] }));
+        setErrors((prev) => ({ ...prev, country: "", state: "", distributor: "", oem: "", dealer: "" }));
+        return;
+    }
+
+    if (name === "state") {
+        setFormData((prev) => ({ 
+            ...prev, 
+            state: newValue, 
+            distributor: "",
+            dealer: "",
+        }));
+        setApiOptions((prev) => ({ ...prev, distributors: [], dealers: [] }));
+        setErrors((prev) => ({ ...prev, state: "", distributor: "", oem: "", dealer: "" }));
+        return;
     }
 
     if (name === "distributor" || name === "oem") {
@@ -542,14 +612,17 @@ function AllocateBarcode() {
         toast.success(response.data.message || `Allocation successful for ${selectedBarcodesArray.length} barcodes!`);
         setShowModal(false);
 
+        // Reset state after successful allocation
         setAllocatedBarcodes([]);
         setFormData((prev) => ({
           ...prev,
           distributor: "",
           oem: "",
           dealer: "",
+          country: "",
+          state: "",
         }));
-        setApiOptions((prev) => ({ ...prev, dealers: [] }));
+        setApiOptions((prev) => ({ ...prev, distributors: [], dealers: [] }));
         fetchAvailableBarcodes();
         fetchAllAllocatedData();
       } else {
@@ -567,7 +640,8 @@ function AllocateBarcode() {
 
   const SelectField = ({ id, label, options, required = false, disabled = false, isPartner = false, isDealer = false }) => {
     const isError = !!errors[id];
-    const isLoading = isPartner ? isLoadingPartners : (isDealer ? isLoadingDealers : isLoadingOptions); 
+    // Special handling for partner loading state
+    const isLoading = isPartner ? (id === 'distributor' && formData.selectionType === 'Distributor' ? isLoadingPartners : (id === 'oem' && formData.selectionType === 'OEM' ? isLoadingPartners : false)) : (isDealer ? isLoadingDealers : isLoadingOptions); 
 
     return (
       <div className="flex-grow min-w-[200px]">
@@ -634,7 +708,8 @@ function AllocateBarcode() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
         {formData.selectionType === "Distributor" ? (
-          <SelectField id="distributor" label="Distributor" options={apiOptions.distributors} required isPartner disabled={!formData.country || !formData.state} />
+          // 💡 Distributor is disabled until state is selected
+          <SelectField id="distributor" label="Distributor" options={apiOptions.distributors} required isPartner disabled={!formData.state} />
         ) : (
           <SelectField id="oem" label="OEM" options={apiOptions.oems} required isPartner disabled={!formData.country || !formData.state} />
         )}
@@ -781,7 +856,27 @@ function AllocateBarcode() {
             Barcode Management Overview
           </h2>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+                setShowModal(true);
+                // Reset form when opening modal
+                setFormData({
+                    country: "",
+                    state: "",
+                    selectionType: "Distributor",
+                    distributor: "",
+                    oem: "",
+                    dealer: "", 
+                    element: "",
+                    elementType: "",
+                    modelNo: "",
+                    voltage: "",
+                    partNo: "",
+                    type: "NEW",
+                });
+                setAllocatedBarcodes([]);
+                setApiOptions(prev => ({ ...prev, distributors: [], dealers: [] }));
+                setErrors({});
+            }}
             className="px-6 py-3 bg-yellow-500 text-black font-semibold rounded-xl shadow-lg hover:bg-yellow-600 flex items-center gap-2 transition"
           >
             <svg
@@ -818,109 +913,101 @@ function AllocateBarcode() {
                     <button
                         onClick={fetchAllAllocatedData}
                         disabled={isLoadingAllocatedData}
-                        className="p-2 bg-yellow-500 text-black rounded-full hover:bg-yellow-600 transition disabled:bg-gray-600"
+                        className="p-2 rounded-lg bg-yellow-500 text-black hover:bg-yellow-600 transition disabled:bg-gray-600"
                         title="Refresh Data"
                     >
-                        <RefreshCw size={20} className={isLoadingAllocatedData ? "animate-spin" : ""} />
+                        {isLoadingAllocatedData ? <Loader size={20} className="animate-spin" /> : <RefreshCw size={20} />}
                     </button>
                 </div>
             </div>
-
-            {isLoadingAllocatedData ? (
-                <div className="text-center py-10 flex flex-col items-center justify-center text-yellow-500">
-                    <Loader size={32} className="animate-spin mb-3" />
-                    Loading allocated data...
-                </div>
-            ) : filteredAllocatedData.length === 0 ? (
-                <div className="text-center py-10 text-gray-400">
-                    <Ban size={32} className="mx-auto mb-3" />
-                    No allocated barcodes found.
-                </div>
-            ) : (
-                <>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-yellow-700">
-                            <thead>
-                                <tr className="bg-gray-800 text-yellow-300 text-left text-sm uppercase tracking-wider">
-                                    <th className="p-3">#</th>
-                                    <th className="p-3">Barcode No</th>
-                                    <th className="p-3">Partner Type</th>
-                                    <th className="p-3">Partner Name</th>
-                                    <th className="p-3">Dealer</th>
-                                    <th className="p-3">Element Type</th>
-                                    <th className="p-3">Model No</th>
-                                    <th className="p-3">Voltage</th>
-                                    <th className="p-3">SIM Details</th> 
+            
+            {/* Table Content */}
+            <div className="overflow-x-auto">
+                {isLoadingAllocatedData ? (
+                    <div className="text-center py-10 text-yellow-400 flex items-center justify-center">
+                        <Loader size={24} className="animate-spin mr-2" />
+                        Loading allocated data...
+                    </div>
+                ) : filteredAllocatedData.length === 0 ? (
+                    <div className="text-center py-10 text-gray-500 flex items-center justify-center">
+                        <Ban size={24} className="mr-2" />
+                        No allocated barcodes found or matching your search.
+                    </div>
+                ) : (
+                    <table className="min-w-full divide-y divide-gray-700">
+                        <thead className="bg-gray-800">
+                            <tr>
+                                {["Barcode No", "Country", "State", "Partner Type", "Partner Name", "Dealer Name", "Element Type", "Allocated On"].map(header => (
+                                    <th key={header} className="px-6 py-3 text-left text-xs font-semibold text-yellow-400 uppercase tracking-wider">
+                                        {header}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="bg-gray-900 divide-y divide-gray-800">
+                            {currentTableData.map((item) => (
+                                <tr key={item._id} className="text-white hover:bg-gray-800/70 transition duration-150">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-yellow-300">
+                                        {item.barCodeNo || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                                        {item.country || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                                        {item.state || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.checkBoxValue === 'Distributor' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                                            {item.checkBoxValue || 'N/A'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-yellow-200">
+                                        {item.checkBoxValue === 'Distributor' ? (item.distributorName || item.distributor || 'N/A') : (item.oemName || item.oem || 'N/A')}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-yellow-200">
+                                        {item.delerName || item.deler || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                        {item.elementType || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'N/A'}
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-700 text-sm">
-                                {currentTableData.map((item, index) => {
-                                    const serialNo = (currentPage - 1) * rowsPerPage + index + 1;
-                                    const partnerType = item.oem ? 'OEM' : (item.distributor ? 'Distributor' : 'N/A');
-                                    const partnerId = item.oem || item.distributor;
-                                    const partnerName = item.oemName || item.distributorName || getPartnerName(partnerId, partnerType);
-                                    
-                                    // ⬅️ FIX APPLIED HERE: Safely access and render SIM details
-                                    let simDisplay = 'N/A';
-                                    if (item.simDetails && typeof item.simDetails === 'object') {
-                                        // Attempt to display SIM details as a comma-separated string
-                                        const simKeys = Object.keys(item.simDetails).filter(k => k !== '_id');
-                                        simDisplay = simKeys.length > 0 
-                                            ? simKeys.map(k => `${k}: ${item.simDetails[k]}`).join(', ')
-                                            : 'No SIM Data';
-                                    } else if (item.simDetails) {
-                                        // Fallback for non-object data (though error suggests object)
-                                        simDisplay = String(item.simDetails);
-                                    }
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
 
-
-                                    return (
-                                        <tr key={item._id || index} className="hover:bg-gray-800 transition">
-                                            <td className="p-3 font-medium">{serialNo}</td>
-                                            <td className="p-3 font-mono text-yellow-500">{item.barCodeNo || 'N/A'}</td>
-                                            <td className="p-3">{partnerType}</td>
-                                            <td className="p-3">{partnerName}</td>
-                                            {/* Note: Dealer Name is typically directly returned from API or can use the helper with item.deler */}
-                                            <td className="p-3">{item.delerName || getPartnerName(item.deler, 'Dealer')}</td> 
-                                            <td className="p-3">{item.elementType || 'N/A'}</td>
-                                            <td className="p-3">{item.modelNo || 'N/A'}</td>
-                                            <td className="p-3">{item.Voltege || 'N/A'}</td>
-                                            {/* RENDER THE SIM DATA SAFELY */}
-                                            <td className="p-3 text-xs text-gray-400">{simDisplay}</td> 
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Pagination */}
-                    <div className="flex justify-between items-center pt-4 border-t border-yellow-700 mt-4 text-sm">
-                        <span className="text-gray-400">
-                            Showing {filteredAllocatedData.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0} to {Math.min(currentPage * rowsPerPage, filteredAllocatedData.length)} of {filteredAllocatedData.length} entries
+            {/* Pagination */}
+            {filteredAllocatedData.length > 0 && (
+                <div className="flex justify-between items-center mt-4">
+                    <span className="text-sm text-gray-400">
+                        Showing {currentTableData.length} of {filteredAllocatedData.length} allocations
+                    </span>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="p-2 rounded-lg bg-gray-800 text-yellow-400 hover:bg-gray-700 disabled:opacity-50"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <span className="text-sm text-yellow-400">
+                            Page {currentPage} of {totalPages}
                         </span>
-                        <div className="flex space-x-2">
-                            <button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className="px-3 py-1 bg-gray-800 rounded-lg text-yellow-400 hover:bg-gray-700 disabled:opacity-50 transition"
-                            >
-                                Previous
-                            </button>
-                            <span className="px-3 py-1 bg-yellow-500 text-black rounded-lg font-bold">
-                                {currentPage}
-                            </span>
-                            <button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages || totalPages === 0}
-                                className="px-3 py-1 bg-gray-800 rounded-lg text-yellow-400 hover:bg-gray-700 disabled:opacity-50 transition"
-                            >
-                                Next
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="p-2 rounded-lg bg-gray-800 text-yellow-400 hover:bg-gray-700 disabled:opacity-50"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
                     </div>
-                </>
+                </div>
             )}
+
         </div>
       </div>
     </div>
