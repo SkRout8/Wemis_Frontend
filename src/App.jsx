@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Login from "./pages/Login";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import AdminDashboard from "./AdminPage/AdminDashboard";
@@ -44,8 +44,16 @@ import ManageMapDevices from "./ManufacturePage/ManageMapDevices";
 import Subscription from "./ManufacturePage/Subscription";
 import DealerDistributor from "./ManufacturePage/DealerDistributor";
 import DealerOem from "./ManufacturePage/DealerOem";
-import DistributorDashboard from "./Distributor/DistributorDashboard";
+
 import OemDashboard from "./OEM/OemDashboard";
+import DistributorDashboard from "./Distributor/DistributorDashboard";
+import BarcodePage from "./Distributor/BarcodePage";
+import AllocateBarcodePage from "./Distributor/AllocateBarcodePage";
+import RollbackBarcodePage from "./Distributor/RollbackBarcodePage";
+import RenewalAllocationPage from "./Distributor/RenewalAllocationPage";
+import DealerPage from "./Distributor/DealerPage";
+import TechnicianPage from "./Distributor/TechnicianPage";
+import MapDevicePage from "./Distributor/MapDevicePage";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -60,49 +68,94 @@ function App() {
         {user && (
           <>
             {/* SuperAdmin Routes */}
-            <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
+            <Route
+              path="/superadmin/dashboard"
+              element={<SuperAdminDashboard />}
+            />
             <Route path="/superadmin/adminlist" element={<AdminList />} />
             <Route path="/superadmin/createadmin" element={<CreateAdmin />} />
             <Route path="/superadmin/element" element={<SuperAdminElement />} />
-            <Route path="/superadmin/element-types" element={<SuperAdminElementTypes />} />
-            <Route path="/superadmin/model-numbers" element={<SuperAdminModelNumbers />} />
-            <Route path="/superadmin/part-numbers" element={<SuperAdminPartNumbers />} />
-            <Route path="/superadmin/tac-numbers" element={<SuperAdminTACNumbers />} />
-            <Route path="/superadmin/cop-numbers" element={<SuperAdminCOPNumbers />} />
-            <Route path="/superadmin/testing-agency" element={<SuperAdminTestingAgency />} />
-            <Route path="/superadmin/assign-element" element={<SuperAdminAssignElement />} />
+            <Route
+              path="/superadmin/element-types"
+              element={<SuperAdminElementTypes />}
+            />
+            <Route
+              path="/superadmin/model-numbers"
+              element={<SuperAdminModelNumbers />}
+            />
+            <Route
+              path="/superadmin/part-numbers"
+              element={<SuperAdminPartNumbers />}
+            />
+            <Route
+              path="/superadmin/tac-numbers"
+              element={<SuperAdminTACNumbers />}
+            />
+            <Route
+              path="/superadmin/cop-numbers"
+              element={<SuperAdminCOPNumbers />}
+            />
+            <Route
+              path="/superadmin/testing-agency"
+              element={<SuperAdminTestingAgency />}
+            />
+            <Route
+              path="/superadmin/assign-element"
+              element={<SuperAdminAssignElement />}
+            />
 
             {/* Admin Routes */}
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/element" element={<AdminElementList />} />
-            <Route path="/admin/assign-element" element={<AdminElementAsignList />} />
+            <Route
+              path="/admin/assign-element"
+              element={<AdminElementAsignList />}
+            />
             <Route path="/admin/createwlp" element={<CreateWlp />} />
             <Route path="/admin/wlplist" element={<Wlplist />} />
 
             {/* Wlp Routes */}
             <Route path="/wlp/dashboard" element={<WlpDashboard />} />
             <Route path="/wlp/element-list" element={<WlpElementList />} />
-            <Route path="/wlp/assign-element" element={<WlpElementAssignList />} />
+            <Route
+              path="/wlp/assign-element"
+              element={<WlpElementAssignList />}
+            />
             <Route path="/wlp/manufacturelist" element={<ManufactureList />} />
-            <Route path="/wlp/createmanufacture" element={<CreateManufacture />} />
+            <Route
+              path="/wlp/createmanufacture"
+              element={<CreateManufacture />}
+            />
 
             {/* Manufacture Routes */}
-            <Route path="/manufacturer/dashboard" element={<ManufactureDashboard />} />
+            <Route
+              path="/manufacturer/dashboard"
+              element={<ManufactureDashboard />}
+            />
             <Route path="/dashboard/status" element={<StatusDashboard />} />
             <Route path="/dashboard/ccc" element={<CCCDashboard />} />
-            <Route path="/dashboard/monitoring" element={<MonitoringDashboard />} />
-            <Route path="/members/dealer-distributor" element={<DealerDistributor />} />
+            <Route
+              path="/dashboard/monitoring"
+              element={<MonitoringDashboard />}
+            />
+            <Route
+              path="/members/dealer-distributor"
+              element={<DealerDistributor />}
+            />
             <Route path="/members/dealer-oem" element={<DealerOem />} />
 
             {/* Reports */}
             <Route path="/reports" element={<Reports />} />
 
             {/* ✅ Barcode Dropdown Routes */}
-            <Route path="/barcode/manage" element={<ManageBarcode/>} />
+            <Route path="/barcode/manage" element={<ManageBarcode />} />
             <Route path="/barcode/allocate" element={<AllocateBarcode />} />
             <Route path="/barcode/rollback" element={<RollbackBarcode />} />
             <Route path="/barcode/renewal" element={<RenewalAllocation />} />
-            <Route path="/barcode/accessories" element={<ManageAccessories />} />
+            <Route
+              path="/barcode/accessories"
+              element={<ManageAccessories />}
+            />
 
             {/* Subscription */}
             <Route path="/subscription" element={<Subscription />} />
@@ -119,7 +172,37 @@ function App() {
             <Route path="/oem/dashboard" element={<OemDashboard />} />
 
             {/* Distributor Routes */}
-            <Route path="/distributor/dashboard" element={<DistributorDashboard />} />
+            <Route
+              path="/distibutor/dashboard"
+              element={<DistributorDashboard />}
+            />
+
+            {/* Main Dashboard */}
+
+            {/* Barcode Dropdown Routes */}
+            <Route path="/distributor/barcode" element={<BarcodePage />} />
+            <Route
+              path="/distributor/allocate-barcode"
+              element={<AllocateBarcodePage />}
+            />
+            <Route
+              path="/distributor/rollback-barcode"
+              element={<RollbackBarcodePage />}
+            />
+            <Route
+              path="/distributor/renewal-allocation"
+              element={<RenewalAllocationPage />}
+            />
+
+            {/* Members Routes */}
+            <Route path="/distributor/dealer" element={<DealerPage />} />
+            <Route
+              path="/distributor/technician"
+              element={<TechnicianPage />}
+            />
+
+            {/* Manage Device */}
+            <Route path="/distributor/map-device" element={<MapDevicePage />} />
           </>
         )}
       </Routes>

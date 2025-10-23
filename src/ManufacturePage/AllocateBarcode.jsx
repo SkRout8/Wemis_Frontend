@@ -1,18 +1,16 @@
-// AllocateBarcode.jsx
 import React, { useState, useMemo, useEffect, useCallback, useContext } from "react";
-import { ChevronRight, ChevronLeft, AlertCircle, RefreshCw } from "lucide-react";
+import { ChevronRight, ChevronLeft, AlertCircle, RefreshCw, Loader, Ban } from "lucide-react";
 import axios from 'axios';
 import ManufactureNavbar from "./ManufactureNavbar";
 import toast, { Toaster } from "react-hot-toast";
 
 // --- MOCK Context for Token Retrieval (Essential for compilation) ---
 const UserAppContext = React.createContext({
-  token: localStorage.getItem("token") || null,
-  // Add other user context values as needed
+  token: localStorage.getItem("token") || "MOCK_TOKEN_12345", // Mock fallback
 });
 
 
-// --- API Endpoints ---
+// --- API Endpoints (Kept as is) ---
 const ELEMENT_DATA_API = "https://wemis-backend.onrender.com/manufactur/fetchElementData";
 const AVAILABLE_BARCODES_API = "https://wemis-backend.onrender.com/manufactur/fetchAllBarCode";
 const DISTRIBUTOR_API = "https://wemis-backend.onrender.com/manufactur/findDistributorUnderManufactur";
@@ -23,7 +21,7 @@ const ALLOCATE_API = "https://wemis-backend.onrender.com/manufactur/AllocateBarC
 const ALLOCATED_DATA_API = "https://wemis-backend.onrender.com/manufactur/fetchAllAllocatedBarcode";
 
 
-// --- Reusable Modal Component ---
+// --- Reusable Modal Component (Kept as is) ---
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
 
@@ -68,7 +66,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
-// --- Mock/Static Data (Remaining) ---
+// --- Mock/Static Data (Kept as is) ---
 const MOCK_OPTIONS = {
   countries: [
     { value: "US", label: "United States" },
@@ -94,7 +92,6 @@ const MOCK_OPTIONS = {
   },
 };
 
-// --- Initial API Options State (Expanded with Hardcoded Voltage & NEW Dealers) ---
 const INITIAL_API_OPTIONS = {
   elements: [],
   elementTypes: [],
@@ -103,7 +100,6 @@ const INITIAL_API_OPTIONS = {
   distributors: [],
   oems: [],
   dealers: [], 
-  // HARDCODED VOLTAGE OPTIONS
   voltages: [
     { value: "12V", label: "12V" },
     { value: "24V", label: "24V" },
@@ -131,9 +127,11 @@ function AllocateBarcode() {
   const [isAllocating, setIsAllocating] = useState(false);
   const [allocatedData, setAllocatedData] = useState([]);
   const [isLoadingAllocatedData, setIsLoadingAllocatedData] = useState(false);
-
-
   const [apiOptions, setApiOptions] = useState(INITIAL_API_OPTIONS);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+
 
   const [formData, setFormData] = useState({
     country: "",
@@ -166,35 +164,19 @@ function AllocateBarcode() {
     setFormData((prev) => ({ ...prev, state: "" }));
   }, [formData.country]);
 
-  // ⬅️ HELPER FUNCTION to find the partner name by ID from the fetched options
-  // This helper is crucial for displaying names instead of IDs in the table.
+  // ⬅️ FIX: Helper to find the partner name by ID for table rendering
   const getPartnerName = useCallback((id, type) => {
     if (!id) return 'N/A';
 
-    // The logic here attempts to search the currently loaded options for the name.
-    // NOTE: This will only work perfectly if ALL partners (Distributor, OEM, Dealers)
-    // are loaded in apiOptions *before* the allocated data is displayed.
-    if (type === 'Distributor') {
-        const distributor = apiOptions.distributors.find(d => d.value === id);
-        return distributor ? distributor.label : id;
-    }
-
-    if (type === 'OEM') {
-        const oem = apiOptions.oems.find(o => o.value === id);
-        return oem ? oem.label : id;
-    }
-
-    // Since Dealers are fetched dynamically based on the selected partner in the modal,
-    // the allocated data list might have dealer IDs not present in the current `apiOptions.dealers`.
-    // For the list, we generally fallback to the ID or implement a separate lookup if necessary.
-    if (type === 'Dealer') {
-        const dealer = apiOptions.dealers.find(d => d.value === id);
-        return dealer ? dealer.label : id;
-    }
-
-    return id;
+    let options = [];
+    if (type === 'Distributor') options = apiOptions.distributors;
+    else if (type === 'OEM') options = apiOptions.oems;
+    else if (type === 'Dealer') options = apiOptions.dealers;
+    
+    // Look up the name from the currently loaded options
+    const partner = options.find(p => p.value === id);
+    return partner ? partner.label : id;
   }, [apiOptions.distributors, apiOptions.oems, apiOptions.dealers]); 
-
 
   // --- API Fetch Allocated Barcode Data ---
   const fetchAllAllocatedData = useCallback(async () => {
@@ -231,8 +213,7 @@ function AllocateBarcode() {
     }
   }, [tkn]);
 
-
-  // --- API Fetch Element Data (Product Specs - excluding voltage) ---
+  // --- API Fetch Element Data, Available Barcodes, Partners, Dealers (Kept as is) ---
   const fetchElementData = useCallback(async () => {
     if (!tkn) {
       return;
@@ -265,7 +246,6 @@ function AllocateBarcode() {
     }
   }, [tkn]);
 
-  // --- API Fetch Available Barcodes ---
   const fetchAvailableBarcodes = useCallback(async () => {
     if (!tkn) {
       return;
@@ -305,7 +285,6 @@ function AllocateBarcode() {
     }
   }, [tkn]);
 
-  // --- API Fetch Partners (Distributors/OEMs) ---
   const fetchDistributors = useCallback(async () => {
     if (!tkn) return;
     setIsLoadingPartners(true);
@@ -317,7 +296,6 @@ function AllocateBarcode() {
         const formattedDistributors = rawData
           .map(d => ({
             value: d._id,
-            // Assuming Distributor list uses 'business_Name' or fallback to 'name'
             label: d.business_Name || d.name || d.userName || d._id
           }))
           .filter(d => d.value);
@@ -361,7 +339,6 @@ function AllocateBarcode() {
     }
   }, [tkn]);
 
-  // ⬅️ CRITICAL FIX: API Fetch Dealers under the selected Partner
   const fetchDealers = useCallback(async (partnerId, partnerType) => {
     if (!tkn || !partnerId) {
       setApiOptions(prev => ({ ...prev, dealers: [] }));
@@ -374,16 +351,12 @@ function AllocateBarcode() {
     setFormData(prev => ({ ...prev, dealer: "" })); // Clear selected dealer
 
     const api = partnerType === 'Distributor' ? DEALER_UNDER_DISTRIBUTOR_API : DEALER_UNDER_OEM_API;
-    
-    // Payload uses 'distributorIde' or 'oemId'
     const payload = partnerType === 'Distributor' 
       ? { distributorIde: partnerId } 
       : {oemId: partnerId }; 
     
     try {
       const response = await axios.post(api, payload, { headers: { Authorization: `Bearer ${tkn}` } });
-      
-      // API response structure might vary, trying common keys
       const rawData = response.data.deler || response.data.dealers || response.data.oem || []; 
 
       if (Array.isArray(rawData)) {
@@ -410,7 +383,6 @@ function AllocateBarcode() {
 
 
   // --- Initial Data Fetch Effect ---
-  // Ensure all necessary options are fetched initially for the allocation form AND the table
   useEffect(() => {
     if (tkn) {
       fetchElementData();
@@ -427,24 +399,20 @@ function AllocateBarcode() {
     const { name, value } = e.target;
     let newValue = value;
 
-    // 1. Handle selectionType change
     if (name === "selectionType") {
       setFormData((prev) => ({
         ...prev,
         distributor: "",
         oem: "",
-        dealer: "", // Clear dealer on partner type change
+        dealer: "", 
         selectionType: newValue,
       }));
-      // Clear dealer options immediately
       setApiOptions((prev) => ({ ...prev, dealers: [] })); 
       setErrors((prev) => ({ ...prev, distributor: "", oem: "", dealer: "" }));
       return;
     }
 
-    // 2. Handle partner change (distributor/oem)
     if (name === "distributor" || name === "oem") {
-      // Clear dealer and its options when partner changes
       setFormData((prev) => ({ 
         ...prev, 
         [name]: newValue, 
@@ -455,21 +423,18 @@ function AllocateBarcode() {
       return; 
     }
     
-    // 3. Update all other fields
     setErrors((prev) => ({ ...prev, [name]: "" }));
     setFormData((prev) => ({ ...prev, [name]: newValue }));
   };
 
-  // ⬅️ Effect to trigger dealer fetch when distributor or oem changes
+  // Effect to trigger dealer fetch when distributor or oem changes
   useEffect(() => {
     const partnerId = formData.selectionType === "Distributor" ? formData.distributor : formData.oem;
     const partnerType = formData.selectionType;
 
     if (partnerId) {
-      // Only fetch if a partner ID is actually selected
       fetchDealers(partnerId, partnerType);
     } else {
-      // Clear dealers if the selected partner ID is empty
       setApiOptions(prev => ({ ...prev, dealers: [] }));
       setFormData(prev => ({ ...prev, dealer: "" }));
     }
@@ -492,43 +457,27 @@ function AllocateBarcode() {
     setSelectedState(values);
   };
 
-  // Move forward
+  // Move forward/back (barcode transfer)
   const moveForward = () => {
     const selectedCodes = new Set(selectedAvailable);
-    const itemsToMove = availableBarcodes.filter((bc) =>
-      selectedCodes.has(bc.id)
-    );
-
-    setAvailableBarcodes((prev) =>
-      prev.filter((bc) => !selectedCodes.has(bc.id))
-    );
+    const itemsToMove = availableBarcodes.filter((bc) => selectedCodes.has(bc.id));
+    setAvailableBarcodes((prev) => prev.filter((bc) => !selectedCodes.has(bc.id)));
     setAllocatedBarcodes((prev) => [...prev, ...itemsToMove].sort((a, b) => a.id.localeCompare(b.id)));
-
     setSelectedAvailable([]);
   };
 
-  // Move back
   const moveBack = () => {
     const selectedCodes = new Set(selectedAllocated);
-    const itemsToMove = allocatedBarcodes.filter((bc) =>
-      selectedCodes.has(bc.id)
-    );
-
-    setAllocatedBarcodes((prev) =>
-      prev.filter((bc) => !selectedCodes.has(bc.id))
-    );
-    setAvailableBarcodes((prev) =>
-      [...prev, ...itemsToMove].sort((a, b) => a.id.localeCompare(b.id))
-    );
-
+    const itemsToMove = allocatedBarcodes.filter((bc) => selectedCodes.has(bc.id));
+    setAllocatedBarcodes((prev) => prev.filter((bc) => !selectedCodes.has(bc.id)));
+    setAvailableBarcodes((prev) => [...prev, ...itemsToMove].sort((a, b) => a.id.localeCompare(b.id)));
     setSelectedAllocated([]);
   };
 
-  // --- ALLOCATE FUNCTION ---
+  // --- ALLOCATE FUNCTION (Kept as is) ---
   const handleAllocate = async () => {
     let newErrors = {};
 
-    // 1. Validate required fields
     requiredFields.forEach((field) => {
       if (!formData[field]) newErrors[field] = "This field is required.";
     });
@@ -540,7 +489,6 @@ function AllocateBarcode() {
     let distributorId = "";
     let oemId = "";
 
-    // 2. Validate conditional partner field and assign IDs
     if (formData.selectionType === "Distributor") {
       if (!formData.distributor) {
         newErrors.distributor = "Distributor is required.";
@@ -555,14 +503,12 @@ function AllocateBarcode() {
       }
     }
 
-    // 3. Final Error Check
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       toast.error("Please fill all required fields.");
       return;
     }
 
-    // Get the dynamically selected barcodes
     const selectedBarcodesArray = allocatedBarcodes.map((o) => o.id);
 
     if (selectedBarcodesArray.length === 0) {
@@ -570,14 +516,13 @@ function AllocateBarcode() {
        return;
     }
 
-    // 4. Construct API Payload
     const payload = {
       country: formData.country,
       state: formData.state,
       checkBoxValue: formData.selectionType,
       distributor: formData.selectionType === "Distributor" ? distributorId : "",
       oem: formData.selectionType === "OEM" ? oemId : "",
-      deler: formData.dealer, // This is the Dealer ID
+      deler: formData.dealer, 
       element: formData.element,
       elementType: formData.elementType,
       modelNo: formData.modelNo,
@@ -587,36 +532,27 @@ function AllocateBarcode() {
       barcodes: selectedBarcodesArray,
     };
 
-    console.log("Allocation Payload (Dynamic Barcodes):", payload);
-
-    // 5. Send data to the Allocation API
     setIsAllocating(true);
     try {
       const response = await axios.post(ALLOCATE_API, payload, {
-        headers: {
-          Authorization: `Bearer ${tkn}`,
-        },
+        headers: { Authorization: `Bearer ${tkn}` },
       });
 
       if (response.data.success) {
         toast.success(response.data.message || `Allocation successful for ${selectedBarcodesArray.length} barcodes!`);
         setShowModal(false);
 
-        // Reset fields after successful allocation
         setAllocatedBarcodes([]);
         setFormData((prev) => ({
           ...prev,
           distributor: "",
           oem: "",
           dealer: "",
-          // Note: Keeping country/state/specs for potential quick re-allocation
         }));
-        setApiOptions((prev) => ({ ...prev, dealers: [] })); // Clear dealer options
-        // REFRESH TABLES AFTER SUCCESSFUL ALLOCATION
+        setApiOptions((prev) => ({ ...prev, dealers: [] }));
         fetchAvailableBarcodes();
         fetchAllAllocatedData();
       } else {
-        // Handle server-side failure message
         toast.error(response.data.message || "Allocation failed. Please check server logs.");
       }
 
@@ -676,49 +612,20 @@ function AllocateBarcode() {
     <div className="space-y-6">
       {/* Country and State Filters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <SelectField
-          id="country"
-          label="Country"
-          options={MOCK_OPTIONS.countries}
-          required
-        />
-        <SelectField
-          id="state"
-          label="State"
-          options={filteredStates}
-          required
-          disabled={!formData.country}
-        />
+        <SelectField id="country" label="Country" options={MOCK_OPTIONS.countries} required />
+        <SelectField id="state" label="State" options={filteredStates} required disabled={!formData.country} />
       </div>
 
-      {/* Selection Type Radio Group (Mutually Exclusive) */}
+      {/* Selection Type Radio Group */}
       <div className="bg-gray-800 p-4 border border-yellow-500 rounded-lg flex flex-wrap gap-6">
         <span className="text-yellow-300 font-semibold w-full block">Select Partner Type:</span>
         <label className="flex items-center space-x-3">
-          <input
-            type="radio"
-            name="selectionType"
-            value="Distributor"
-            checked={formData.selectionType === "Distributor"}
-            onChange={handleChange}
-            className="form-radio h-5 w-5 text-yellow-500 bg-gray-900 border-yellow-500 rounded-full focus:ring-yellow-400"
-          />
-          <span className="text-yellow-300">
-            Distributor
-          </span>
+          <input type="radio" name="selectionType" value="Distributor" checked={formData.selectionType === "Distributor"} onChange={handleChange} className="form-radio h-5 w-5 text-yellow-500 bg-gray-900 border-yellow-500 rounded-full focus:ring-yellow-400" />
+          <span className="text-yellow-300">Distributor</span>
         </label>
         <label className="flex items-center space-x-3">
-          <input
-            type="radio"
-            name="selectionType"
-            value="OEM"
-            checked={formData.selectionType === "OEM"}
-            onChange={handleChange}
-            className="form-radio h-5 w-5 text-yellow-500 bg-gray-900 border-yellow-500 rounded-full focus:ring-yellow-400"
-          />
-          <span className="text-yellow-300">
-            OEM
-          </span>
+          <input type="radio" name="selectionType" value="OEM" checked={formData.selectionType === "OEM"} onChange={handleChange} className="form-radio h-5 w-5 text-yellow-500 bg-gray-900 border-yellow-500 rounded-full focus:ring-yellow-400" />
+          <span className="text-yellow-300">OEM</span>
         </label>
       </div>
 
@@ -726,35 +633,18 @@ function AllocateBarcode() {
       <h4 className="text-xl font-bold text-yellow-400 border-b border-yellow-600 pb-2 mt-6">Partner Details {isLoadingPartners && "(Loading Partners...)"}</h4>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
-        {/* Conditional Partner Field */}
         {formData.selectionType === "Distributor" ? (
-          <SelectField
-            id="distributor"
-            label="Distributor"
-            options={apiOptions.distributors}
-            required
-            isPartner
-            disabled={!formData.country || !formData.state}
-          />
+          <SelectField id="distributor" label="Distributor" options={apiOptions.distributors} required isPartner disabled={!formData.country || !formData.state} />
         ) : (
-          <SelectField
-            id="oem"
-            label="OEM"
-            options={apiOptions.oems}
-            required
-            isPartner
-            disabled={!formData.country || !formData.state}
-          />
+          <SelectField id="oem" label="OEM" options={apiOptions.oems} required isPartner disabled={!formData.country || !formData.state} />
         )}
 
-         {/* Dealer is now DYNAMIC and dependent on selected partner */}
          <SelectField
           id="dealer"
           label={`Dealer (Under ${formData.selectionType})`}
           options={apiOptions.dealers} 
           required
           isDealer 
-          // Disable if country/state aren't selected OR if the required partner isn't selected
           disabled={!formData.country || !formData.state || (formData.selectionType === "Distributor" && !formData.distributor) || (formData.selectionType === "OEM" && !formData.oem)}
         />
       </div>
@@ -765,7 +655,6 @@ function AllocateBarcode() {
         <SelectField id="element" label="Element" options={apiOptions.elements} required />
         <SelectField id="elementType" label="Element Type" options={apiOptions.elementTypes} required />
         <SelectField id="modelNo" label="Model No" options={apiOptions.modelNos} required />
-        {/* Voltage uses hardcoded options */}
         <SelectField id="voltage" label="Voltage" options={apiOptions.voltages} required /> 
       </div>
 
@@ -778,7 +667,6 @@ function AllocateBarcode() {
       <h4 className="text-xl font-bold text-yellow-400 border-b border-yellow-600 pb-2 mt-6">Barcode Selection</h4>
       <div className="bg-gray-800 p-4 border border-yellow-500 rounded-lg shadow-inner">
         <div className="flex flex-col md:flex-row gap-6">
-          {/* Available */}
           <div className="w-full md:w-5/12">
             <div className="font-bold text-yellow-300 mb-2">
               Available Barcodes ({availableBarcodes.length})
@@ -799,7 +687,6 @@ function AllocateBarcode() {
             </select>
           </div>
 
-          {/* Buttons */}
           <div className="w-full md:w-2/12 flex md:flex-col justify-center items-center gap-4">
             <button
               onClick={moveForward}
@@ -817,7 +704,6 @@ function AllocateBarcode() {
             </button>
           </div>
 
-          {/* Allocated */}
           <div className="w-full md:w-5/12">
             <div className="font-bold text-yellow-300 mb-2">
               Allocated Barcodes (
@@ -852,19 +738,51 @@ function AllocateBarcode() {
     </div>
   );
 
+  // --- Table Filtering and Pagination ---
+  const filteredAllocatedData = useMemo(() => {
+    return allocatedData.filter(item =>
+      item.barCodeNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.distributorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.oemName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.delerName?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [allocatedData, searchTerm]);
+
+  const totalPages = Math.ceil(filteredAllocatedData.length / rowsPerPage);
+  const currentTableData = useMemo(() => {
+    const firstPageIndex = (currentPage - 1) * rowsPerPage;
+    const lastPageIndex = firstPageIndex + rowsPerPage;
+    return filteredAllocatedData.slice(firstPageIndex, lastPageIndex);
+  }, [currentPage, rowsPerPage, filteredAllocatedData]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage > 0 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+
   return (
     <div className="font-inter min-h-screen bg-gray-950">
       <ManufactureNavbar />
-      <Toaster position="top-right" /> {/* Toaster for notifications */}
+      <Toaster position="top-right" /> 
 
-      <div className="container max-w-6xl mx-auto p-6 md:p-10">
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Allocate Barcodes to Partner"
+      >
+        {AllocationFormContent}
+      </Modal>
+
+      <div className="container max-w-7xl mx-auto p-6 md:p-10">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-extrabold text-yellow-400">
             Barcode Management Overview
           </h2>
           <button
             onClick={() => setShowModal(true)}
-            className="px-6 py-3 bg-yellow-500 text-black font-semibold rounded-xl shadow-lg hover:bg-yellow-600 flex items-center gap-2"
+            className="px-6 py-3 bg-yellow-500 text-black font-semibold rounded-xl shadow-lg hover:bg-yellow-600 flex items-center gap-2 transition"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -886,103 +804,125 @@ function AllocateBarcode() {
         </div>
 
         {/* Allocated Data Table */}
-       <div className="bg-gray-900 p-8 rounded-xl shadow-lg border border-yellow-500">
-            <div className="flex justify-between items-center mb-4 border-b border-yellow-600 pb-3">
-                <h3 className="text-xl font-bold text-yellow-400">Allocated Barcodes List ({allocatedData.length})</h3>
-                <button
-                    onClick={fetchAllAllocatedData}
-                    disabled={isLoadingAllocatedData}
-                    className="p-2 text-yellow-300 hover:text-yellow-500 transition disabled:opacity-50"
-                >
-                    <RefreshCw className={isLoadingAllocatedData ? "animate-spin" : ""} size={20} />
-                </button>
+       <div className="bg-gray-900 p-4 rounded-xl shadow-lg border border-yellow-500">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-4 border-b border-yellow-600 pb-3">
+                <h3 className="text-xl font-bold text-yellow-400">Allocated Barcodes</h3>
+                <div className="flex items-center space-x-3 mt-3 md:mt-0">
+                    <input
+                        type="text"
+                        placeholder="Search Barcode, Dealer, or Partner..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="p-2 border border-yellow-500 rounded-lg bg-gray-800 text-yellow-200 focus:ring-2 focus:ring-yellow-500 transition w-full md:w-64"
+                    />
+                    <button
+                        onClick={fetchAllAllocatedData}
+                        disabled={isLoadingAllocatedData}
+                        className="p-2 bg-yellow-500 text-black rounded-full hover:bg-yellow-600 transition disabled:bg-gray-600"
+                        title="Refresh Data"
+                    >
+                        <RefreshCw size={20} className={isLoadingAllocatedData ? "animate-spin" : ""} />
+                    </button>
+                </div>
             </div>
 
             {isLoadingAllocatedData ? (
-                <div className="text-center py-10 text-yellow-300">
-                    <RefreshCw className="animate-spin mx-auto mb-2" size={24} />
+                <div className="text-center py-10 flex flex-col items-center justify-center text-yellow-500">
+                    <Loader size={32} className="animate-spin mb-3" />
                     Loading allocated data...
                 </div>
-            ) : allocatedData.length === 0 ? (
-                <p className="text-yellow-300 text-center py-10">No barcodes have been allocated yet.</p>
-            ) : (
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-yellow-700">
-                        <thead className="bg-gray-800">
-                            <tr>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Barcode
-                                </th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Product (Type/Model)
-                                </th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Part No.
-                                </th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Volts
-                                </th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Partner Type
-                                </th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Partner Name
-                                </th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Dealer
-                                </th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Location
-                                </th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                                    Allocated Date
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-gray-900 divide-y divide-yellow-800">
-                            {allocatedData.map((item, index) => {
-                                const partnerType = item.checkBoxValue;
-                                const partnerId = partnerType === 'Distributor' ? item.allocatedDistributorId : item.allocatedOemId;
-
-                                const partnerName = getPartnerName(partnerId, partnerType);
-                                const dealerName = getPartnerName(item.allocatedDelerId, 'Dealer'); // Attempt to get dealer name
-                                const barcode = Array.isArray(item.allocatedBarCode) ? item.allocatedBarCode[0] : (item.allocatedBarCode || 'N/A');
-                                const statusColor = item.status === 'USED' ? 'text-red-400 font-bold' : 'text-green-400';
-                                const formattedDate = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'N/A';
-
-                                return (
-                                    <tr key={index} className="hover:bg-gray-800 transition">
-                                        <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-yellow-200">{barcode}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-yellow-300">{`${item.elementType} / ${item.modelNo}`}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-yellow-300">{item.partNo || 'N/A'}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-yellow-300">{item.Voltege || 'N/A'}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-yellow-300">{partnerType || 'N/A'}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-yellow-300">{partnerName}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-yellow-300">{dealerName}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-yellow-300">{`${item.state} (${item.country})`}</td>
-                                        <td className={`px-3 py-3 whitespace-nowrap text-sm ${statusColor}`}>{item.status || 'ALLOCATED'}</td>
-                                        <td className="px-3 py-3 whitespace-nowrap text-sm text-yellow-300">{formattedDate}</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+            ) : filteredAllocatedData.length === 0 ? (
+                <div className="text-center py-10 text-gray-400">
+                    <Ban size={32} className="mx-auto mb-3" />
+                    No allocated barcodes found.
                 </div>
+            ) : (
+                <>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-yellow-700">
+                            <thead>
+                                <tr className="bg-gray-800 text-yellow-300 text-left text-sm uppercase tracking-wider">
+                                    <th className="p-3">#</th>
+                                    <th className="p-3">Barcode No</th>
+                                    <th className="p-3">Partner Type</th>
+                                    <th className="p-3">Partner Name</th>
+                                    <th className="p-3">Dealer</th>
+                                    <th className="p-3">Element Type</th>
+                                    <th className="p-3">Model No</th>
+                                    <th className="p-3">Voltage</th>
+                                    <th className="p-3">SIM Details</th> 
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-700 text-sm">
+                                {currentTableData.map((item, index) => {
+                                    const serialNo = (currentPage - 1) * rowsPerPage + index + 1;
+                                    const partnerType = item.oem ? 'OEM' : (item.distributor ? 'Distributor' : 'N/A');
+                                    const partnerId = item.oem || item.distributor;
+                                    const partnerName = item.oemName || item.distributorName || getPartnerName(partnerId, partnerType);
+                                    
+                                    // ⬅️ FIX APPLIED HERE: Safely access and render SIM details
+                                    let simDisplay = 'N/A';
+                                    if (item.simDetails && typeof item.simDetails === 'object') {
+                                        // Attempt to display SIM details as a comma-separated string
+                                        const simKeys = Object.keys(item.simDetails).filter(k => k !== '_id');
+                                        simDisplay = simKeys.length > 0 
+                                            ? simKeys.map(k => `${k}: ${item.simDetails[k]}`).join(', ')
+                                            : 'No SIM Data';
+                                    } else if (item.simDetails) {
+                                        // Fallback for non-object data (though error suggests object)
+                                        simDisplay = String(item.simDetails);
+                                    }
+
+
+                                    return (
+                                        <tr key={item._id || index} className="hover:bg-gray-800 transition">
+                                            <td className="p-3 font-medium">{serialNo}</td>
+                                            <td className="p-3 font-mono text-yellow-500">{item.barCodeNo || 'N/A'}</td>
+                                            <td className="p-3">{partnerType}</td>
+                                            <td className="p-3">{partnerName}</td>
+                                            {/* Note: Dealer Name is typically directly returned from API or can use the helper with item.deler */}
+                                            <td className="p-3">{item.delerName || getPartnerName(item.deler, 'Dealer')}</td> 
+                                            <td className="p-3">{item.elementType || 'N/A'}</td>
+                                            <td className="p-3">{item.modelNo || 'N/A'}</td>
+                                            <td className="p-3">{item.Voltege || 'N/A'}</td>
+                                            {/* RENDER THE SIM DATA SAFELY */}
+                                            <td className="p-3 text-xs text-gray-400">{simDisplay}</td> 
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="flex justify-between items-center pt-4 border-t border-yellow-700 mt-4 text-sm">
+                        <span className="text-gray-400">
+                            Showing {filteredAllocatedData.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0} to {Math.min(currentPage * rowsPerPage, filteredAllocatedData.length)} of {filteredAllocatedData.length} entries
+                        </span>
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 bg-gray-800 rounded-lg text-yellow-400 hover:bg-gray-700 disabled:opacity-50 transition"
+                            >
+                                Previous
+                            </button>
+                            <span className="px-3 py-1 bg-yellow-500 text-black rounded-lg font-bold">
+                                {currentPage}
+                            </span>
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                className="px-3 py-1 bg-gray-800 rounded-lg text-yellow-400 hover:bg-gray-700 disabled:opacity-50 transition"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </>
             )}
         </div>
       </div>
-
-      {/* Allocation Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title="Allocate Barcodes to Partner/Dealer"
-      >
-        {AllocationFormContent}
-      </Modal>
     </div>
   );
 }
