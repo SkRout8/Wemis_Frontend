@@ -187,14 +187,7 @@ const DistributorDashboard = () => {
                     <Users size={16} /> Dealer
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    to="/distributor/technician"
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-yellow-400 hover:text-black transition"
-                  >
-                    <Wrench size={16} /> Technician
-                  </Link>
-                </li>
+                
               </ul>
             </div>
           )}

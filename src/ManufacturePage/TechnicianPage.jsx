@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { PlusCircle, User, Phone, Mail, Wrench, Trash2, Edit, X } from "lucide-react";
-import DistributorNavbar from "./DistributorNavbar";
+
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
+import ManufactureNavbar from "./ManufactureNavbar";
 
 const ADD_TECHNICIAN_API = "https://your-backend-api.com/technicians";
 
@@ -71,7 +72,7 @@ const TechnicianPage = () => {
   return (
     <>
       <Toaster position="top-right" />
-      <DistributorNavbar />
+      <ManufactureNavbar />
 
       <div className="min-h-screen bg-black text-yellow-400 px-4 py-8 md:px-8 -mt-[5px]">
         <div className="flex flex-col md:flex-row justify-between items-center border-b border-yellow-400/30 pb-4 mb-8 gap-4">

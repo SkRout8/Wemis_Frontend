@@ -92,9 +92,12 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
       dropdown: [
         { name: "Distributors", route: "/members/distributors" },
         { name: "OEM", route: "/members/oem" },
-        { name: "Dealer", customModal: "dealer" }, // ✅ opens Dealer Modal
+         { name: "Technician", route: "/members/technician" },
+        { name: "Dealer", customModal: "dealer" }, 
+         // ✅ opens Dealer Modal
       ],
     },
+    
     {
       name: "Manage Device",
       icon: <Cpu />,

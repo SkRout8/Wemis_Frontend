@@ -52,8 +52,9 @@ import AllocateBarcodePage from "./Distributor/AllocateBarcodePage";
 import RollbackBarcodePage from "./Distributor/RollbackBarcodePage";
 import RenewalAllocationPage from "./Distributor/RenewalAllocationPage";
 import DealerPage from "./Distributor/DealerPage";
-import TechnicianPage from "./Distributor/TechnicianPage";
+
 import MapDevicePage from "./Distributor/MapDevicePage";
+import TechnicianPage from "./ManufacturePage/TechnicianPage";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -164,6 +165,10 @@ function App() {
             <Route path="/members/distributors" element={<Distributors />} />
             <Route path="/members/oem" element={<OEM />} />
             <Route path="/members/technicians" element={<Technicians />} />
+            <Route
+              path="/members/technician"
+              element={<TechnicianPage />}
+            />
 
             {/* Devices */}
             <Route path="/manage-device" element={<ManageMapDevices />} />
@@ -196,10 +201,7 @@ function App() {
 
             {/* Members Routes */}
             <Route path="/distributor/dealer" element={<DealerPage />} />
-            <Route
-              path="/distributor/technician"
-              element={<TechnicianPage />}
-            />
+
 
             {/* Manage Device */}
             <Route path="/distributor/map-device" element={<MapDevicePage />} />
