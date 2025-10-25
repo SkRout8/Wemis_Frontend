@@ -1,809 +1,668 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import {
-  Edit,
-  Eye,
-  FileText,
-  File,
-  Database,
-  MapPin,
-  X,
-  Plus,
-  Truck,
-  User,
-  Wrench,
-  Clipboard,
-  Package,
-  CheckCircle,
-  Hash,
-  Upload,
-} from 'lucide-react';
 
-// Assuming ManufactureNavbar is defined in a separate file or included above.
-import ManufactureNavbar from './ManufactureNavbar';
+// --- Configuration ---
+const DISTRIBUTOR_API = 'https://wemis-backend.onrender.com/manufactur/fetchDistributorOnBasisOfState';
+const DEALER_API = 'https://wemis-backend.onrender.com/manufactur/fetchdelerOnBasisOfDistributor'; 
+const DEVICE_NO_API = 'https://wemis-backend.onrender.com/manufactur/fetchDeviceNoOnBasisOfDeler'; 
+// UPDATED SUBMIT API
+const SUBMIT_API = 'https://wemis-backend.onrender.com/manufactur/manuFacturMAPaDevice'; 
+const PACKAGE_API = 'https://wemis-backend.onrender.com/manufactur/fetchSubScriptionPackages'; 
 
-// --- Constants for Indian States (from search result) ---
-const INDIAN_STATES = [
-  { label: 'Andhra Pradesh', value: 'Andhra Pradesh' },
-  { label: 'Arunachal Pradesh', value: 'Arunachal Pradesh' },
-  { label: 'Assam', value: 'Assam' },
-  { label: 'Bihar', value: 'Bihar' },
-  { label: 'Chhattisgarh', value: 'Chhattisgarh' },
-  { label: 'Goa', value: 'Goa' },
-  { label: 'Gujarat', value: 'Gujarat' },
-  { label: 'Haryana', value: 'Haryana' },
-  { label: 'Himachal Pradesh', value: 'Himachal Pradesh' },
-  { label: 'Jharkhand', value: 'Jharkhand' },
-  { label: 'Karnataka', value: 'Karnataka' },
-  { label: 'Kerala', value: 'Kerala' },
-  { label: 'Madhya Pradesh', value: 'Madhya Pradesh' },
-  { label: 'Maharashtra', value: 'Maharashtra' },
-  { label: 'Manipur', value: 'Manipur' },
-  { label: 'Meghalaya', value: 'Meghalaya' },
-  { label: 'Mizoram', value: 'Mizoram' },
-  { label: 'Nagaland', value: 'Nagaland' },
-  { label: 'Odisha', value: 'Odisha' },
-  { label: 'Punjab', value: 'Punjab' },
-  { label: 'Rajasthan', value: 'Rajasthan' },
-  { label: 'Sikkim', value: 'Sikkim' },
-  { label: 'Tamil Nadu', value: 'Tamil Nadu' },
-  { label: 'Telangana', value: 'Telangana' },
-  { label: 'Tripura', value: 'Tripura' },
-  { label: 'Uttar Pradesh', value: 'Uttar Pradesh' },
-  { label: 'Uttarakhand', value: 'Uttarakhand' },
-  { label: 'West Bengal', value: 'West Bengal' },
-  { label: 'Andaman and Nicobar Islands (UT)', value: 'Andaman and Nicobar Islands' },
-  { label: 'Chandigarh (UT)', value: 'Chandigarh' },
-  { label: 'Dadra and Nagar Haveli and Daman & Diu (UT)', value: 'Dadra and Nagar Haveli and Daman & Diu' },
-  { label: 'Delhi (NCT)', value: 'Delhi' },
-  { label: 'Jammu and Kashmir (UT)', value: 'Jammu and Kashmir' },
-  { label: 'Ladakh (UT)', value: 'Ladakh' },
-  { label: 'Lakshadweep (UT)', value: 'Lakshadweep' },
-  { label: 'Puducherry (UT)', value: 'Puducherry' },
+// Simple list of countries and states for the dropdowns
+const COUNTRIES = [
+  { code: 'IN', name: 'India' },
+  { code: 'US', name: 'United States' },
 ];
 
-// ----------------------------------------------------------------------
-// --- Reusable Input Component (Unchanged) ---
-// ----------------------------------------------------------------------
-const FormInput = ({ label, type = 'text', name, value, onChange, required, options, min, max, placeholder, multiple = false }) => {
-  const commonClasses = "w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-yellow-400 focus:border-yellow-400 transition duration-150 shadow-inner text-sm";
-  const labelClasses = "block text-xs font-medium text-yellow-400 mb-1 flex items-center uppercase tracking-wider";
+const INDIA_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+];
 
-  let inputField;
+// --- Component ---
+function ManageMapDevices() {
+  const initialFormData = {
+    // Device and Vehicle Info
+    country: 'India', 
+    state: '',
+    distributorName: '', // Stores distributor _id
+    delerName: '', // Stores dealer name (or contact name/business name)
+    deviceType: '',
+    deviceNo: '', // This will store deviceSerialNo
+    voltage: '',
+    elementType: '',
+    batchNo: '',
+    simDetails: '', // Placeholder/legacy field
+    
+    VechileBirth: '',
+    RegistrationNo: '',
+    date: '', // Date of Mapping/Install
+    ChassisNumber: '',
+    EngineNumber: '',
+    VehicleType: '',
+    MakeModel: '',
+    ModelYear: '',
+    InsuranceRenewDate: '',
+    PollutionRenewdate: '',
+    VehicleKMReading: '', // Updated label
+    DriverLicenseNo: '', // Updated label
+    MappedDate: '', // Updated label
+    NoOfPanicButtons: '', // Updated label
 
-  // Ensure default 'select' option is included if not for file/radio
-  const selectOptions = useMemo(() => {
-    if (type === 'select' && options) {
-      // Prepend a "Select" option if the current value isn't set
-      if (value === '' || !options.find(opt => opt.value === value)) {
-        return [{ label: `Choose ${label}`, value: '' }, ...options];
-      }
-      return options;
-    }
-    return options;
-  }, [type, options, value, label]);
+    // Customer Info
+    fullName: '',
+    email: '',
+    mobileNo: '',
+    GstinNo: '',
+    Customercountry: 'India', // Updated label
+    Customerstate: '', // Updated label
+    Customerdistrict: '',
+    Rto: '',
+    PinCode: '',
+    CompliteAddress: '',
+    AdharNo: '',
+    PanNo: '',
+    
+    // Package and Invoice Info
+    Packages: '', // Stores the selected package _id
+    InvoiceNo: '',
 
-  if (type === 'select' && options) {
-    inputField = (
-      <select
-        name={name}
-        value={value}
-        onChange={onChange}
-        required={required}
-        className={commonClasses + " appearance-none cursor-pointer"}
-        multiple={multiple}
-      >
-        {selectOptions.map((option, index) => (
-          <option key={index} value={option.value || option.label} className="bg-slate-800 text-white">
-            {option.label}
-          </option>
-        ))}
-      </select>
-    );
-  } else if (type === 'file') {
-    inputField = (
-      <input
-        type="file"
-        name={name}
-        onChange={onChange}
-        required={required}
-        accept="image/png, image/jpeg, application/pdf"
-        className={commonClasses + " file:mr-4 file:py-2 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-400 file:text-black hover:file:bg-yellow-500 cursor-pointer"}
-      />
-    );
-  } else if (type === 'radio') {
-    inputField = (
-      <div className="flex space-x-6 pt-1">
-        {options.map((option, index) => (
-          <label key={index} className="inline-flex items-center text-slate-200 text-sm">
-            <input
-              type="radio"
-              name={name}
-              value={option.value}
-              checked={value === option.value}
-              onChange={onChange}
-              required={required}
-              className="form-radio h-4 w-4 text-yellow-400 bg-slate-700 border-slate-500 focus:ring-yellow-400"
-            />
-            <span className="ml-2">{option.label}</span>
-          </label>
-        ))}
-      </div>
-    );
-  } else {
-    inputField = (
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        required={required}
-        min={min}
-        max={max}
-        placeholder={placeholder || label}
-        className={commonClasses}
-      />
-    );
+    // Documents (Files) - Field names MATCHING BACKEND KEYS
+    Vechile_Doc: null, 
+    Rc_Doc: null, 
+    Pan_Card: null, // Note: using Pan_Card for Pan Card Document
+    Device_Doc: null,
+    Adhar_Card: null,
+    Invious_Doc: null, // Note: using Invious_Doc for Invoice Document
+    Signature_Doc: null, 
+    Panic_Sticker: null, 
+  };
+
+  const [formData, setFormData] = useState(initialFormData);
+  const [distributors, setDistributors] = useState([]);
+  const [dealers, setDealers] = useState([]); 
+  const [deviceNumbers, setDeviceNumbers] = useState([]); 
+  const [mappedSims, setMappedSims] = useState([]); 
+  const [packages, setPackages] = useState([]);
+  const [selectedPackageDetails, setSelectedPackageDetails] = useState(null); 
+  const [loading, setLoading] = useState(false);
+  const [packagesLoading, setPackagesLoading] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null); 
+
+  // --- Utility to reset dependent fields ---
+  const resetDependentFields = () => {
+    setMappedSims([]);
+    return {
+      deviceNo: '',
+      simDetails: '',
+    };
   }
 
-  return (
-    <div className="relative">
-      <label htmlFor={name} className={labelClasses}>
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      {inputField}
-    </div>
-  );
-};
-
-// ----------------------------------------------------------------------
-// --- MapDeviceModal Component (Updated for API/Token/States) ---
-// ----------------------------------------------------------------------
-const MapDeviceModal = ({ isOpen, onClose, userToken = 'YOUR_AUTH_TOKEN_FROM_PARENT_COMPONENT' }) => {
-
-  // --- API Configuration (PLACEHOLDERS - Update these) ---
-  const BASE_URL = 'https://wemis-backend.onrender.com';
-  const ENDPOINTS = {
-    MAP_DEVICE: `${BASE_URL}/manufactur/manuFacturMAPaDevice`,
-    GET_COUNTRIES: `${BASE_URL}/api/countries`, // Placeholder API endpoint
-    GET_DISTRIBUTORS: `${BASE_URL}/api/distributors`, // Placeholder API endpoint
-    GET_DEALERS: `${BASE_URL}/api/dealers`, // Placeholder API endpoint
-    GET_TECHNICIANS: `${BASE_URL}/api/technicians`, // Placeholder API endpoint
-  };
-
-  // --- State for Modal Logic ---
-  const [currentTab, setCurrentTab] = useState('device');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionMessage, setSubmissionMessage] = useState(null);
-  const [documentFiles, setDocumentFiles] = useState({});
-
-  // --- State for Dynamic Data ---
-  const [apiCountries, setApiCountries] = useState([]);
-  const [apiStates, setApiStates] = useState([]); // This will be dynamic for RFC/Customer states
-  const [apiDistributors, setApiDistributors] = useState([]);
-  const [apiDealers, setApiDealers] = useState([]);
-  const [apiTechnicians, setApiTechnicians] = useState([]);
-
-  // 1. Hook: initialFormData (useMemo)
-  const initialFormData = useMemo(() => ({
-    // RFC Info
-    country: '', state: '', distributorName: '', delerName: '',
-    // Device Info
-    deviceType: '', deviceNo: '', voltage: '', elementType: '', batchNo: '',
-    // SIM Info
-    simNumber: '', iccid: '', networkOperator: '',
-    // Vehicle Info
-    VechileBirth: 'New', RegistrationNo: '', date: '', ChassisNumber: '', EngineNumber: '',
-    VehicleType: '', MakeModel: '', ModelYear: '', InsuranceRenewDate: '', PollutionRenewdate: '',
-    // Customer Info
-    fullName: '', email: '', mobileNo: '', GstinNo: '', Customercountry: '',
-    Customerstate: '', Customerdistrict: '', Rto: '', PinCode: '', CompliteAddress: '',
-    AdharNo: '', PanNo: '',
-    // Technician Info
-    technicianNameSelect: '', technicianName: '', technicianEmail: '', technicianMobile: '',
-    // Installation Detail
-    InvoiceNo: '', VehicleKMReading: 0, DriverLicenseNo: '', MappedDate: '', NoOfPanicButtons: 0,
-    // Packages
-    Packages: '2 YEAR AIS 140 VLTD SUBSCRIPTION',
-  }), []);
-
-  // 2. Hook: formData (useState)
-  const [formData, setFormData] = useState(initialFormData);
-
-  // --- API Data Fetching Logic ---
-  const authHeaders = useMemo(() => ({
-    headers: {
-      Authorization: `Bearer ${userToken}`,
-    },
-    
-  }), [userToken]);
- 
-
-  // Function to fetch static/initial dropdown data
-  const fetchInitialData = useCallback(async () => {
+  // --- FETCH SUBSCRIPTION PACKAGES ---
+  const fetchPackages = useCallback(async () => {
+    setPackagesLoading(true);
     try {
-      // Fetch Countries (using a mock for now, but keeping the API structure)
-      // Mocking 'India' as the default country
-      setApiCountries([{ label: 'India', value: 'India' }]);
-      console.log(formData.state)
+      const token = localStorage.getItem('token'); 
+      if (!token) throw new Error('Authentication token not found.');
 
-      // Fetch Distributors
-      const distResponse = await axios.post("https://wemis-backend.onrender.com/manufactur/fetchDistributorOnBasisOfState", { state: formData.state }, authHeaders);
-      console.log(distResponse.data.distributors)
-      setApiDistributors(distResponse.data.distributors.map(d => ({ label: d.distributor, value: d.distributor })));
-     
-      setApiDealers([{ label: 'DUMMY_DEAL-A', value: 'DUMMY_DEAL-A' }, { label: 'DUMMY_DEAL-B', value: 'DUMMY_DEAL-B' }]);
-
-      setApiTechnicians([{ label: 'Technician 1', value: 'TECH-1' }, { label: 'Technician 2', value: 'TECH-2' }]);
+      const response = await axios.post(PACKAGE_API, {}, 
+        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+      );
+      
+      setPackages(response.data.SubScriptionPackage || []); 
 
     } catch (error) {
-      console.error('Error fetching initial data:', error);
-      setSubmissionMessage({ type: 'error', text: 'Failed to load dropdown data.' });
+      console.error('Error fetching packages:', error.response?.data || error.message);
+      setPackages([]);
+    } finally {
+      setPackagesLoading(false);
     }
-  }, [authHeaders]); // Include authHeaders in dependency array
+  }, []);
 
-  // Effect to load initial data on modal open
-  useEffect(() => {
-    if (isOpen) {
-      fetchInitialData();
+  // --- Fetch Distributors (Existing) ---
+  const fetchDistributors = useCallback(async (selectedState) => {
+    if (!selectedState) {
+      setDistributors([]);
+      return;
     }
-  }, [isOpen, fetchInitialData]);
+    setLoading(true);
+    setDistributors([]); 
+    setFormData(prev => ({ ...prev, distributorName: '', delerName: '', ...resetDependentFields() }));
 
-  // Effect to handle Indian State Population
+    try {
+      const token = localStorage.getItem('token'); 
+      if (!token) throw new Error('Authentication token not found.');
+
+      const response = await axios.post(DISTRIBUTOR_API, 
+        { state: selectedState }, 
+        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+      );
+      
+      setDistributors(response.data.distributors || []); 
+
+    } catch (error) {
+      console.error('Error fetching distributors:', error.response?.data || error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  // --- Fetch Dealers (Existing) ---
+  const fetchDealers = useCallback(async (selectedDistributorId) => {
+    if (!selectedDistributorId) {
+      setDealers([]);
+      return;
+    }
+    setLoading(true);
+    setDealers([]); 
+    setFormData(prev => ({ ...prev, delerName: '', ...resetDependentFields() }));
+
+    try {
+      const token = localStorage.getItem('token'); 
+      if (!token) throw new Error('Authentication token not found.');
+
+      const response = await axios.post(DEALER_API, 
+        { distributorId: selectedDistributorId }, 
+        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+      );
+      
+      setDealers(response.data.delers || response.data.dealers || []); 
+    } catch (error) {
+      console.error('Error fetching dealers:', error.response?.data || error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // --- Fetch Device Numbers (Existing) ---
+  const fetchDeviceNumbers = useCallback(async (selectedDelerName) => {
+    if (!selectedDelerName) {
+      setDeviceNumbers([]);
+      return;
+    }
+    setLoading(true);
+    setDeviceNumbers([]);
+    setFormData(prev => ({ ...prev, ...resetDependentFields() })); 
+
+    try {
+      const token = localStorage.getItem('token'); 
+      if (!token) throw new Error('Authentication token not found.');
+
+      const response = await axios.post(DEVICE_NO_API, 
+        { delerName: selectedDelerName }, 
+        { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+      );
+      
+      setDeviceNumbers(response.data.devices || []);
+      
+    } catch (error) {
+      console.error('Error fetching device numbers:', error.response?.data || error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+
+  // --- Effect Hooks ---
+  useEffect(() => { fetchPackages(); }, [fetchPackages]); 
   useEffect(() => {
-    // Both RFC State (state) and Customer State (Customerstate) should use this logic
-    const isIndianCountry = formData.country === 'India' || formData.Customercountry === 'India';
-
-    // Only set Indian states if India is selected in *either* country field
-    if (isIndianCountry) {
-      // Set the consolidated Indian states list
-      setApiStates(INDIAN_STATES);
+    if (formData.country === 'India' && formData.state) {
+      fetchDistributors(formData.state);
     } else {
-      // If other countries are selected, you'd fetch their states or clear the list
-      setApiStates([]);
+      setDistributors([]); 
     }
-
-    // This effect runs whenever country or Customercountry changes
-  }, [formData.country, formData.Customercountry]);
-
-  // 6. Hook: Reset form when modal closes (useEffect)
+  }, [formData.state, formData.country, fetchDistributors]);
   useEffect(() => {
-    if (!isOpen) {
-      setFormData(initialFormData);
-      setDocumentFiles({});
-      setSubmissionMessage(null);
-      setCurrentTab('device'); // Reset tab
-      setApiStates([]); // Clear states on close
+    if (formData.distributorName) {
+      fetchDealers(formData.distributorName);
+    } else {
+      setDealers([]); 
     }
-  }, [isOpen, initialFormData]);
-
-  // 7. Hook: handleInputChange (useCallback)
-  const handleInputChange = useCallback((e) => {
-    const { name, value, type } = e.target;
-    const finalValue = (type === 'radio') ? value : ((type === 'number' && value !== '') ? Number(value) : value);
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: finalValue,
-      // Logic to clear dependent fields if country/state changes
-      ...(name === 'country' && { state: '' }),
-      ...(name === 'Customercountry' && { Customerstate: '' }),
-      ...(name === 'Customerstate' && { Customerdistrict: '' }),
-    }));
-  }, []);
-
-  // 8. Hook: handleFileChange (useCallback)
-  const handleFileChange = useCallback((e) => {
-    const { name, files } = e.target;
-    setDocumentFiles(prev => ({
-      ...prev,
-      [name]: files[0],
-    }));
-  }, []);
-
-  // 9. Hook: documentFields (useMemo - Unchanged)
-  const documentFields = useMemo(() => ([
-    { name: 'vehicleDoc', label: 'Vehicle Photo', required: true },
-    { name: 'rcDoc', label: 'RC (Registration Certificate)', required: true },
-    { name: 'deviceDoc', label: 'Device Installation Photo', required: true },
-    { name: 'panCardDoc', label: 'Pan Card', required: true },
-    { name: 'aadhaarCardDoc', label: 'Aadhaar Card', required: true },
-    { name: 'invoiceDoc', label: 'Invoice', required: true },
-    { name: 'signatureDoc', label: 'Signature', required: true },
-    { name: 'panicButtonDoc', label: 'Panic Button with Sticker', required: true },
-  ]), []);
-
-  // 10. Hook: Static Options (useMemo - Updated to use fetched data)
-  const countries = useMemo(() => [{ label: 'Choose Country', value: '' }, ...apiCountries], [apiCountries]);
-  const statesOptions = useMemo(() => [{ label: 'Choose State', value: '' }, ...apiStates], [apiStates]);
-  const distributorOptions = useMemo(() => [{ label: 'Select Distributor', value: '' }, ...apiDistributors], [apiDistributors]);
-  const dealerOptions = useMemo(() => [{ label: 'Select Dealer', value: '' }, ...apiDealers], [apiDealers]);
-  const technicianOptions = useMemo(() => [{ label: 'Select Technician', value: '' }, ...apiTechnicians], [apiTechnicians]);
-
-  // Other static options
-  const vehicleTypes = useMemo(() => [
-    { label: 'Choose Vehicle Type', value: '' },
-    { label: 'AUTO', value: 'AUTO' }, { label: 'BUS', value: 'BUS' },
-    { label: 'TRUCK', value: 'TRUCK' }, { label: 'TAXI', value: 'TAXI' },
-    { label: 'TRACTOR', value: 'TRACTOR' }, { label: 'TRAILER TRUCK', value: 'TRAILER TRUCK' },
-  ], []);
-  const deviceTypes = useMemo(() => [
-    { label: 'Select Device Type', value: '' },
-    { label: 'New', value: 'New' },
-    { label: 'Renewal', value: 'Renewal' }
-  ], []);
-  const vehicleBirthOptions = useMemo(() => [
-    { label: 'New', value: 'New' },
-    { label: 'Old', value: 'Old' }
-  ], []);
-  const dummySelections = useMemo(() => [{ label: 'Select Option', value: '' }, { label: 'Option A', value: 'A' }], []); // For District/RTO
-
-  const tabs = useMemo(() => [
-    { id: 'device', label: 'Device & SIM', icon: Database, fields: ['deviceType', 'deviceNo', 'voltage', 'elementType', 'batchNo', 'simNumber', 'networkOperator', 'iccid'] },
-    { id: 'vehicle', label: 'Vehicle Info', icon: Truck, fields: ['VechileBirth', 'RegistrationNo', 'date', 'ChassisNumber', 'EngineNumber', 'VehicleType', 'MakeModel', 'ModelYear', 'InsuranceRenewDate', 'PollutionRenewdate'] },
-    { id: 'customer', label: 'Customer Info', icon: User, fields: ['fullName', 'email', 'mobileNo', 'GstinNo', 'Customercountry', 'Customerstate', 'Customerdistrict', 'Rto', 'PinCode', 'CompliteAddress', 'AdharNo', 'PanNo'] },
-    { id: 'installation', label: 'Installation', icon: Wrench, fields: ['InvoiceNo', 'VehicleKMReading', 'DriverLicenseNo', 'MappedDate', 'NoOfPanicButtons', 'technicianNameSelect', 'technicianName', 'technicianEmail', 'technicianMobile'] },
-    { id: 'documents', label: 'Documents', icon: Upload, fields: documentFields.map(f => f.name) },
-  ], [documentFields]);
+  }, [formData.distributorName, fetchDealers]);
+  useEffect(() => {
+    if (formData.delerName) {
+      fetchDeviceNumbers(formData.delerName);
+    } else {
+      setDeviceNumbers([]); 
+    }
+  }, [formData.delerName, fetchDeviceNumbers]);
 
 
+  // --- Handlers ---
+  const handleChange = (e) => {
+    const { name, value, type, files } = e.target;
+    let newFormData = { ...formData };
 
+    if (type === 'file') {
+      // Use the name from the input, which matches the backend's expected field name
+      newFormData[name] = files[0];
+    } else {
+      newFormData[name] = value;
+    }
 
+    // Reset dependent fields on change
+    if (name === 'state') {
+      newFormData.distributorName = '';
+      newFormData.delerName = '';
+      newFormData = { ...newFormData, ...resetDependentFields() };
+      setDistributors([]);
+      setDealers([]);
+      setDeviceNumbers([]);
+    }
+    if (name === 'distributorName') {
+      newFormData.delerName = '';
+      newFormData = { ...newFormData, ...resetDependentFields() };
+      setDealers([]);
+      setDeviceNumbers([]);
+    }
+    if (name === 'delerName') {
+      newFormData = { ...newFormData, ...resetDependentFields() };
+      setDeviceNumbers([]);
+    }
 
-
-
-
-
-
-
-
-  const getTabStatus = useCallback((tabId) => {
-    const tab = tabs.find(t => t.id === tabId);
-    if (!tab) return 'incomplete';
-
-    let isComplete = true;
-    tab.fields.forEach(fieldName => {
-      // Check for required fields in formData
-      const formValue = formData[fieldName];
-
-      // This is a simplified check for required text/select/number fields
-      // A more robust solution would involve explicit validation for each field
-      const isRequired = ['deviceType', 'deviceNo', 'simNumber', 'iccid', 'RegistrationNo', 'VehicleType', 'MakeModel', 'ModelYear', 'ChassisNumber', 'EngineNumber', 'fullName', 'mobileNo', 'AdharNo', 'PanNo', 'Customercountry', 'Customerstate', 'Customerdistrict', 'Rto', 'PinCode', 'CompliteAddress', 'technicianNameSelect', 'InvoiceNo', 'DriverLicenseNo', 'MappedDate'].includes(fieldName);
-
-      if (isRequired) {
-        if (typeof formValue === 'string' && formValue.trim() === '') {
-          isComplete = false;
-        } else if (typeof formValue === 'number' && (formValue === 0 || isNaN(formValue)) && fieldName !== 'VehicleKMReading') {
-          isComplete = false;
+    // Logic to populate SIM fields when deviceNo is selected
+    if (name === 'deviceNo') {
+      if (value) {
+        const selectedDevice = deviceNumbers.find(device => device.deviceSerialNo === value);
+        if (selectedDevice && Array.isArray(selectedDevice.simDetails) && selectedDevice.simDetails.length > 0) {
+          setMappedSims(selectedDevice.simDetails);
+          const simSummary = selectedDevice.simDetails.map(sim => sim.simNo || sim.iccidNo).filter(Boolean).join(', ');
+          newFormData.simDetails = simSummary;
+        } else {
+          setMappedSims([]);
+          newFormData.simDetails = 'No SIM details found.';
         }
+      } else {
+        setMappedSims([]); 
+        newFormData.simDetails = '';
       }
-
-      // Check for required document files
-      const docField = documentFields.find(f => f.name === fieldName);
-      if (docField && docField.required && !documentFiles[fieldName]) {
-        isComplete = false;
-      }
-    });
-
-    return isComplete ? 'complete' : 'incomplete';
-  }, [formData, documentFiles, tabs, documentFields]);
-
-  const goToNextTab = () => {
-    const currentIndex = tabs.findIndex(t => t.id === currentTab);
-    if (currentIndex < tabs.length - 1) {
-      setCurrentTab(tabs[currentIndex + 1].id);
     }
+    
+    // Set Selected Package Details when package changes
+    if (name === 'Packages') {
+        if (value) {
+            const packageId = value;
+            const selectedPkg = packages.find(pkg => pkg._id === packageId);
+            setSelectedPackageDetails(selectedPkg);
+        } else {
+            setSelectedPackageDetails(null);
+        }
+    }
+
+    setFormData(newFormData);
   };
 
-  // --- Submission Handler (Updated to pass Token) ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setSubmitStatus(null);
+    
+    const data = new FormData();
 
-    // Final Tab check
-    if (currentTab !== 'documents') {
-      setSubmissionMessage({ type: 'error', text: 'Please review and complete all sections before submitting.' });
-      setCurrentTab('documents');
-      return;
+    // Append standard form data (excluding file inputs which are handled below)
+    for (const key in formData) {
+      if (formData[key] !== null && formData[key] instanceof File) {
+        // Skip files here, handled below
+        continue;
+      }
+      data.append(key, formData[key] || ''); 
+    }
+    
+    // Append files separately (using the same keys as the formData state)
+    // The keys Vechile_Doc, Rc_Doc, Pan_Card, etc. are already in the formData state
+    // and match the backend upload.fields names.
+    ['Vechile_Doc', 'Rc_Doc', 'Pan_Card', 'Device_Doc', 'Adhar_Card', 'Invious_Doc', 'Signature_Doc', 'Panic_Sticker'].forEach(fileKey => {
+        if (formData[fileKey]) {
+            data.append(fileKey, formData[fileKey]);
+        }
+    });
+
+    // Append the dynamic arrays/objects as JSON strings
+    if (mappedSims.length > 0) {
+        data.append('simDetailsArray', JSON.stringify(mappedSims));
+    }
+    if (selectedPackageDetails) {
+        data.append('fullPackageDetails', JSON.stringify(selectedPackageDetails));
     }
 
-    // Check for required files
-    const missingFiles = documentFields.filter(field => !documentFiles[field.name]);
-    if (missingFiles.length > 0) {
-      setSubmissionMessage({
-        type: 'error',
-        text: `Missing required documents: ${missingFiles.map(f => f.label).join(', ')}`
-      });
-      setTimeout(() => setSubmissionMessage(null), 5000);
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmissionMessage(null);
 
     try {
-      const formDataToSend = new FormData();
-      const simDetails = JSON.stringify({
-        simNumber: formData.simNumber, iccid: formData.iccid, networkOperator: formData.networkOperator,
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Authentication token not found.');
+
+      const response = await axios.post(SUBMIT_API, data, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // axios automatically sets 'Content-Type: multipart/form-data' for FormData
+        },
       });
 
-      const dataMapping = {
-        country: formData.country, state: formData.state, distributorName: formData.distributorName, delerName: formData.delerName,
-        deviceType: formData.deviceType, deviceNo: formData.deviceNo, voltage: formData.voltage, elementType: formData.elementType, batchNo: formData.batchNo,
-        simDetails: simDetails, VechileBirth: formData.VechileBirth, RegistrationNo: formData.RegistrationNo, date: formData.date,
-        ChassisNumber: formData.ChassisNumber, EngineNumber: formData.EngineNumber, VehicleType: formData.VehicleType,
-        MakeModel: formData.MakeModel, ModelYear: formData.ModelYear, InsuranceRenewDate: formData.InsuranceRenewDate, PollutionRenewdate: formData.PollutionRenewdate,
-        fullName: formData.fullName, email: formData.email, mobileNo: formData.mobileNo, GstinNo: formData.GstinNo, Customercountry: formData.Customercountry,
-        Customerstate: formData.Customerstate, Customerdistrict: formData.Customerdistrict, Rto: formData.Rto, PinCode: formData.PinCode,
-        CompliteAddress: formData.CompliteAddress, AdharNo: formData.AdharNo, PanNo: formData.PanNo, Packages: formData.Packages,
-        InvoiceNo: formData.InvoiceNo, VehicleKMReading: formData.VehicleKMReading, DriverLicenseNo: formData.DriverLicenseNo,
-        MappedDate: formData.MappedDate, NoOfPanicButtons: formData.NoOfPanicButtons,
-        technicianName: formData.technicianName, technicianEmail: formData.technicianEmail, technicianMobile: formData.technicianMobile,
-      };
-
-      // Append all form data
-      Object.entries(dataMapping).forEach(([key, value]) => {
-        formDataToSend.append(key, String(value));
-      });
-
-      // Append all document files
-      Object.keys(documentFiles).forEach(key => {
-        if (documentFiles[key]) {
-          formDataToSend.append(key, documentFiles[key], documentFiles[key].name);
-        }
-      });
-
-      // *** IMPORTANT: Passing the Authorization Token via Headers ***
-      const response = await axios.post(ENDPOINTS.MAP_DEVICE, formDataToSend, authHeaders);
-
-      console.log('Submission Success:', response.data);
-      setSubmissionMessage({ type: 'success', text: response.data?.message || 'Device Mapping Submitted Successfully!' });
-
-      setTimeout(() => {
-        onClose();
-      }, 2000);
+      console.log('API Response:', response.data);
+      setSubmitStatus('success');
+      setFormData(initialFormData); 
+      setMappedSims([]); 
+      setSelectedPackageDetails(null); 
 
     } catch (error) {
-      console.error('Submission Error:', error.response || error);
-      const errorText = error.response?.data?.message || error.message || 'An unexpected error occurred during submission.';
-      setSubmissionMessage({ type: 'error', text: `Submission Failed: ${errorText}` });
-
-      setTimeout(() => setSubmissionMessage(null), 7000);
+      console.error('Submission Error:', error.response?.data || error.message);
+      setSubmitStatus('error');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
+  // Helper function to map state keys to display labels (for clarity in rendering)
+  const getLabel = (key) => {
+    const labels = {
+        deviceType: 'Device Type',
+        voltage: 'Voltage',
+        elementType: 'Element Type',
+        batchNo: 'Batch No',
+        VechileBirth: 'Vehicle Birth',
+        RegistrationNo: 'Registration No',
+        date: 'Installation Date',
+        ChassisNumber: 'Chassis Number',
+        EngineNumber: 'Engine Number',
+        VehicleType: 'Vehicle Type',
+        MakeModel: 'Make & Model',
+        ModelYear: 'Model Year',
+        InsuranceRenewDate: 'Insurance Renew Date',
+        PollutionRenewdate: 'Pollution Renew Date',
+        VehicleKMReading: 'Vehicle KM Reading',
+        DriverLicenseNo: 'Driver License No',
+        MappedDate: 'Mapped Date',
+        NoOfPanicButtons: 'No. Of Panic Buttons',
+        fullName: 'Full Name',
+        email: 'Email',
+        mobileNo: 'Mobile No',
+        GstinNo: 'GSTIN No',
+        Customerdistrict: 'Customer District',
+        Rto: 'RTO',
+        PinCode: 'Pin Code',
+        CompliteAddress: 'Complete Address',
+        AdharNo: 'Adhar No',
+        PanNo: 'Pan No',
+        InvoiceNo: 'Invoice No',
+    };
+    return labels[key] || key; // Fallback to key if label not defined
+  };
 
-  // Message Component
-  const MessageBox = () => submissionMessage ? (
-    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 mt-4 p-4 rounded-lg shadow-2xl z-[100] transition-opacity duration-300 ${submissionMessage.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-      }`}>
-      <p className="font-semibold">{submissionMessage.text}</p>
-    </div>
-  ) : null;
-
-  if (!isOpen) return null;
-
-  // Tab Content Renderer
-  const renderTabContent = () => {
-    switch (currentTab) {
-      case 'device':
+  // List of text/number inputs (using state keys)
+  const textNumberInputs = [
+    'deviceType','voltage','elementType','batchNo',
+    'VechileBirth','RegistrationNo','date','ChassisNumber','EngineNumber','VehicleType','MakeModel','ModelYear','InsuranceRenewDate',
+    'PollutionRenewdate','VehicleKMReading','DriverLicenseNo',
+    'MappedDate','NoOfPanicButtons',
+    'fullName','email','mobileNo','GstinNo','Customerdistrict','Rto','PinCode',
+    'CompliteAddress','AdharNo','PanNo','InvoiceNo',
+  ];
+  
+  // List of file inputs (using backend keys which are in formData state)
+  const fileInputs = [
+    { key: 'Vechile_Doc', label: 'Vehicle Document' }, 
+    { key: 'Rc_Doc', label: 'RC Document' }, 
+    { key: 'Pan_Card', label: 'Pan Card Document' }, 
+    { key: 'Device_Doc', label: 'Device Document' }, 
+    { key: 'Adhar_Card', label: 'Adhar Card Document' }, 
+    { key: 'Invious_Doc', label: 'Invoice Document' }, 
+    { key: 'Signature_Doc', label: 'Signature Document' }, 
+    { key: 'Panic_Sticker', label: 'Panic Button Sticker' },
+  ];
+  
+  // Renders the dynamic SIM card boxes (Existing)
+  const renderSimInputs = () => {
+    if (mappedSims.length === 0) {
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <h4 className="md:col-span-2 lg:col-span-3 text-lg font-semibold text-yellow-500 mb-2 border-b border-slate-700 pb-2">Device Details</h4>
-            <FormInput label="Device Type" name="deviceType" value={formData.deviceType} onChange={handleInputChange} required options={deviceTypes} type="select" />
-            <FormInput label="Device No" name="deviceNo" value={formData.deviceNo} onChange={handleInputChange} required options={dummySelections} type="select" />
-            <FormInput label="Batch No." name="batchNo" value={formData.batchNo} onChange={handleInputChange} placeholder="Enter Batch Number" />
-            <FormInput label="Voltage" name="voltage" value={formData.voltage} onChange={handleInputChange} placeholder="Enter Voltage" />
-            <FormInput label="Element Type" name="elementType" value={formData.elementType} onChange={handleInputChange} placeholder="Enter Element Type" />
-
-            <h4 className="md:col-span-2 lg:col-span-3 text-lg font-semibold text-yellow-500 mt-4 mb-2 border-b border-slate-700 pb-2">SIM Details</h4>
-            <FormInput label="SIM Number" name="simNumber" value={formData.simNumber} onChange={handleInputChange} required placeholder="Enter SIM Number" />
-            <FormInput label="Network Operator" name="networkOperator" value={formData.networkOperator} onChange={handleInputChange} placeholder="Enter Network Operator" />
-            <FormInput label="ICCID" name="iccid" value={formData.iccid} onChange={handleInputChange} required placeholder="Enter ICCID" />
-          </div>
-        );
-      case 'vehicle':
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FormInput label="Vehicle Birth" name="VechileBirth" value={formData.VechileBirth} onChange={handleInputChange} required options={vehicleBirthOptions} type="radio" />
-            <FormInput label="Vehicle Type" name="VehicleType" value={formData.VehicleType} onChange={handleInputChange} required options={vehicleTypes} type="select" />
-            <FormInput label="Make & Model" name="MakeModel" value={formData.MakeModel} onChange={handleInputChange} required placeholder="e.g., TATA Ace" />
-            <FormInput label="Registration No." name="RegistrationNo" value={formData.RegistrationNo} onChange={handleInputChange} required placeholder="e.g., MH12AB1234" />
-            <FormInput label="Model Year" name="ModelYear" value={formData.ModelYear} onChange={handleInputChange} required type="number" min="1900" max={new Date().getFullYear()} placeholder="e.g., 2023" />
-            <FormInput label="Chassis Number" name="ChassisNumber" value={formData.ChassisNumber} onChange={handleInputChange} required placeholder="Enter Chassis Number" />
-            <FormInput label="Engine Number" name="EngineNumber" value={formData.EngineNumber} onChange={handleInputChange} required placeholder="Enter Engine Number" />
-            <FormInput label="Insurance Renew date" name="InsuranceRenewDate" value={formData.InsuranceRenewDate} onChange={handleInputChange} type="date" />
-            <FormInput label="Pollution Renew date" name="PollutionRenewdate" value={formData.PollutionRenewdate} onChange={handleInputChange} type="date" />
-          </div>
-        );
-      case 'customer':
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <h4 className="md:col-span-2 lg:col-span-3 text-lg font-semibold text-yellow-500 mb-2 border-b border-slate-700 pb-2">Customer Details</h4>
-            <FormInput label="Full Name" name="fullName" value={formData.fullName} onChange={handleInputChange} required placeholder="Enter Full Name" />
-            <FormInput label="Mobile Number" name="mobileNo" value={formData.mobileNo} onChange={handleInputChange} required type="tel" placeholder="Enter Mobile Number" />
-            <FormInput label="Email Address" name="email" value={formData.email} onChange={handleInputChange} type="email" placeholder="Enter Email" />
-            <FormInput label="Aadhaar Number" name="AdharNo" value={formData.AdharNo} onChange={handleInputChange} required placeholder="Enter Aadhaar Number" />
-            <FormInput label="PAN Number" name="PanNo" value={formData.PanNo} onChange={handleInputChange} required placeholder="Enter PAN Number" />
-            <FormInput label="GSTIN Number" name="GstinNo" value={formData.GstinNo} onChange={handleInputChange} placeholder="Enter GSTIN" />
-
-            <h4 className="md:col-span-2 lg:col-span-3 text-lg font-semibold text-yellow-500 mt-4 mb-2 border-b border-slate-700 pb-2">Address & RTO Info</h4>
-            <FormInput label="Country" name="Customercountry" value={formData.Customercountry} onChange={handleInputChange} required options={countries} type="select" />
-            <FormInput label="State/Region" name="Customerstate" value={formData.Customerstate} onChange={handleInputChange} required options={statesOptions} type="select" />
-            <FormInput label="District" name="Customerdistrict" value={formData.Customerdistrict} onChange={handleInputChange} required options={dummySelections} type="select" />
-            <FormInput label="RTO Division" name="Rto" value={formData.Rto} onChange={handleInputChange} required options={dummySelections} type="select" />
-            <FormInput label="Pin Code" name="PinCode" value={formData.PinCode} onChange={handleInputChange} required type="number" placeholder="Enter Pin Code" />
-            <div className="md:col-span-2 lg:col-span-3">
-              <FormInput label="Complete Address" name="CompliteAddress" value={formData.CompliteAddress} onChange={handleInputChange} required placeholder="Enter Complete Address" />
+            <div className="md:col-span-3 text-center py-4 text-gray-500 border border-dashed rounded-md">
+                No SIM details found for the selected device.
             </div>
-          </div>
         );
-      case 'installation':
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <h4 className="md:col-span-2 lg:col-span-3 text-lg font-semibold text-yellow-500 mb-2 border-b border-slate-700 pb-2">Technician Info</h4>
-            <FormInput label="Select Technician" name="technicianNameSelect" value={formData.technicianNameSelect} onChange={handleInputChange} required options={technicianOptions} type="select" />
-            <FormInput label="Name" name="technicianName" value={formData.technicianName} onChange={handleInputChange} required placeholder="Technician Name" />
-            <FormInput label="Email" name="technicianEmail" value={formData.technicianEmail} onChange={handleInputChange} required type="email" placeholder="Technician Email" />
-            <FormInput label="Mobile" name="technicianMobile" value={formData.technicianMobile} onChange={handleInputChange} required type="tel" placeholder="Technician Mobile" />
+    }
 
-            <h4 className="md:col-span-2 lg:col-span-3 text-lg font-semibold text-yellow-500 mt-4 mb-2 border-b border-slate-700 pb-2">Installation Details</h4>
-            <FormInput label="Invoice No" name="InvoiceNo" value={formData.InvoiceNo} onChange={handleInputChange} required placeholder="Enter Invoice No" />
-            <FormInput label="Vehicle KM Reading" name="VehicleKMReading" value={formData.VehicleKMReading} onChange={handleInputChange} required type="number" min="0" placeholder="Enter KM Reading" />
-            <FormInput label="Driver License No" name="DriverLicenseNo" value={formData.DriverLicenseNo} onChange={handleInputChange} required placeholder="Enter Driver License No" />
-            <FormInput label="Mapped Date" name="MappedDate" value={formData.MappedDate} onChange={handleInputChange} required type="date" />
-            <FormInput label="No Of Panic Buttons" name="NoOfPanicButtons" value={formData.NoOfPanicButtons} onChange={handleInputChange} required type="number" min="0" placeholder="Number of Panic Buttons" />
-
-            <div className="md:col-span-2 lg:col-span-3 pt-4">
-              <h4 className="text-lg font-semibold text-yellow-500 mb-2 border-b border-slate-700 pb-2">Package</h4>
-              <div className="bg-slate-700 p-4 rounded-lg border-l-4 border-yellow-400">
-                <p className="text-base font-extrabold text-white">2 YEAR AIS 140 VLTD SUBSCRIPTION</p>
-                <p className="text-yellow-400 font-mono text-sm">₹3500.00 / 730 days</p>
+    return mappedSims.map((sim, index) => (
+      <div key={index} className="md:col-span-1 border border-blue-300 p-4 rounded-lg bg-blue-50 shadow-inner">
+        <h4 className="font-bold mb-3 text-blue-800">SIM Card {index + 1} Details</h4>
+        <div className="space-y-3">
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-700">Sim No</label>
+            <input type="text" value={sim.simNo || ''} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700"/>
+          </div>
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-700">ICCID No</label>
+            <input type="text" value={sim.iccidNo || ''} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700"/>
+          </div>
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-700">Operator</label>
+            <input type="text" value={sim.operator || ''} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700"/>
+          </div>
+          <div>
+            <label className="block mb-1 text-sm font-medium text-gray-700">Validity Date</label>
+            <input type="date" value={sim.validityDate ? new Date(sim.validityDate).toISOString().split('T')[0] : ''} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700"/>
+          </div>
+        </div>
+      </div>
+    ));
+  };
+  
+  // Renders the dedicated package detail box (Existing)
+  const renderPackageDetailsBox = () => {
+      if (!selectedPackageDetails) return null;
+      
+      const details = selectedPackageDetails;
+      
+      return (
+          <div className="md:col-span-3 border border-green-500 p-5 rounded-lg bg-green-50 shadow-lg mt-4">
+              <h4 className="text-xl font-bold mb-3 text-green-800">Selected Package Details: **{details.packageName || 'N/A'}**</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                  <PackageDetailItem label="Package Type" value={details.packageType} />
+                  <PackageDetailItem label="Billing Cycle" value={details.billingCycle} />
+                  <PackageDetailItem label="Renewal" value={details.renewal} />
+                  <PackageDetailItem label="Price (₹)" value={details.price} />
+                  <PackageDetailItem label="Description" value={details.description} />
+                  <PackageDetailItem label="Created At" value={new Date(details.createdAt).toLocaleDateString()} />
               </div>
-              <input type="hidden" name="Packages" value={formData.Packages} />
-            </div>
-
           </div>
-        );
-      case 'documents':
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="md:col-span-2 lg:col-span-3">
-              <p className="text-slate-400 mb-4 text-sm italic border-b border-slate-700 pb-2">
-                * All listed documents are **required**. Supported file types: PNG, JPG, JPEG, PDF.
-              </p>
-            </div>
-            {documentFields.map((field) => (
-              <FormInput
-                key={field.name}
-                label={`${field.label} ${documentFiles[field.name] ? ' (Ready: ' + documentFiles[field.name].name + ')' : ''}`}
-                name={field.name}
-                onChange={handleFileChange}
-                required={field.required}
-                type="file"
-              />
+      );
+  };
+  
+  // Helper Component for Package Details
+  const PackageDetailItem = ({ label, value }) => (
+      <div className="border-b pb-2">
+          <p className="font-semibold text-gray-600">{label}:</p>
+          <p className="text-gray-800 break-words">{value || 'N/A'}</p>
+      </div>
+  );
+
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto bg-gray-100 rounded-md shadow-2xl">
+      <h2 className="text-3xl font-bold mb-6 text-center text-blue-800">🛠️ Manage Map Devices</h2>
+      
+      {/* Loading & Status Messages */}
+      {(loading || packagesLoading) && (
+        <div className="text-center py-2 text-blue-600 font-semibold">
+          Processing... Please wait.
+        </div>
+      )}
+      {submitStatus === 'success' && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Success!</strong>
+          <span className="block sm:inline"> Form submitted successfully!</span>
+        </div>
+      )}
+      {submitStatus === 'error' && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Error!</strong>
+          <span className="block sm:inline"> Submission failed. Check console for details.</span>
+        </div>
+      )}
+
+      {/* --- Form Section --- */}
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* --- Location Dropdowns (Existing) --- */}
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">Country</label>
+          <select name="country" value={formData.country} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white">
+            <option value="">Select Country</option>
+            {COUNTRIES.map(c => (<option key={c.code} value={c.name}>{c.name}</option>))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">State</label>
+          {formData.country === 'India' ? (
+            <select name="state" value={formData.state} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white">
+              <option value="">Select State</option>
+              {INDIA_STATES.map(state => (<option key={state} value={state}>{state}</option>))}
+            </select>
+          ) : (
+            <input type="text" name="state" value={formData.state} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter State/Province"/>
+          )}
+        </div>
+        
+        {/* --- Distributor Dropdown (Existing) --- */}
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">Distributor Name</label>
+          <select name="distributorName" value={formData.distributorName} onChange={handleChange} disabled={!formData.state || loading} className={`w-full px-3 py-2 border rounded-md bg-white ${!formData.state || loading ? 'opacity-50' : ''}`}>
+            <option value="">
+              {loading ? 'Loading Distributors...' : formData.state && distributors.length > 0 ? 'Select Distributor' : formData.state ? 'No Distributors Found' : 'Select State First'}
+            </option>
+            {distributors.map(dist => (<option key={dist._id} value={dist._id}>{dist.contact_Person_Name}</option>))}
+          </select>
+        </div>
+        
+        {/* --- Dealer Dropdown (Existing) --- */}
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">Dealer Name</label>
+          <select name="delerName" value={formData.delerName} onChange={handleChange} disabled={!formData.distributorName || loading} className={`w-full px-3 py-2 border rounded-md bg-white ${!formData.distributorName || loading ? 'opacity-50' : ''}`}>
+            <option value="">
+              {loading ? 'Loading Dealers...' : formData.distributorName && dealers.length > 0 ? 'Select Dealer' : formData.distributorName ? 'No Dealers Found' : 'Select Distributor First'}
+            </option>
+            {dealers.map(dealer => (<option key={dealer._id || dealer.mobile} value={dealer.name || dealer.business_Name}>{dealer.name || dealer.business_Name || 'Unknown Dealer'}</option>))}
+          </select>
+        </div>
+        
+        {/* --- Device Number Dropdown (Existing) --- */}
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">Device No (Serial No)</label>
+          <select name="deviceNo" value={formData.deviceNo} onChange={handleChange} disabled={!formData.delerName || loading} className={`w-full px-3 py-2 border rounded-md bg-white ${!formData.delerName || loading ? 'opacity-50' : ''}`}>
+            <option value="">
+              {loading ? 'Loading Device Nos...' : formData.delerName && deviceNumbers.length > 0 ? 'Select Device Number' : formData.delerName ? 'No Devices Found' : 'Select Dealer First'}
+            </option>
+            {deviceNumbers.map(device => (<option key={device.deviceSerialNo} value={device.deviceSerialNo}>{device.deviceSerialNo}</option>))}
+          </select>
+        </div>
+        
+        {/* --- Packages Dropdown (Existing) --- */}
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">Packages</label>
+          <select name="Packages" value={formData.Packages} onChange={handleChange} disabled={packagesLoading} className={`w-full px-3 py-2 border rounded-md bg-white ${packagesLoading ? 'opacity-50' : ''}`}>
+            <option value="">
+              {packagesLoading ? 'Loading Packages...' : packages.length > 0 ? 'Select Package' : 'No Packages Found'}
+            </option>
+            {packages.map(pkg => (<option key={pkg._id} value={pkg._id}>{pkg.packageName || pkg._id}</option>))}
+          </select>
+        </div>
+
+        {/* --- PACKAGE DETAILS BOX (Existing) --- */}
+        {renderPackageDetailsBox()}
+        
+        {/* --- Dynamic SIM Card Boxes Section (Existing) --- */}
+        <div className="md:col-span-3 border-b pb-2 mb-4 mt-4">
+            <h3 className="text-xl font-semibold text-blue-700">SIM Card Details (Auto-Populated)</h3>
+        </div>
+        
+        <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {renderSimInputs()}
+        </div>
+
+        <div className="md:col-span-3 border-b pb-2 mt-4">
+            <h3 className="text-xl font-semibold text-blue-700">Device, Vehicle & Customer Info</h3>
+        </div>
+
+        {/* --- Device Fields --- */}
+        {['deviceType','voltage','elementType','batchNo'].map((field) => (
+          <div key={field}>
+            <label className="block mb-1 font-medium text-gray-700">{getLabel(field)}</label>
+            <input type={field.toLowerCase().includes('number') ? 'number' : 'text'} name={field} value={formData[field]} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md"/>
+          </div>
+        ))}
+
+        {/* --- Customer Location Dropdowns (Corrected Labels) --- */}
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">Customer Country</label>
+          <select name="Customercountry" value={formData.Customercountry} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white">
+            <option value="">Select Country</option>
+            {COUNTRIES.map(c => (<option key={`cust-${c.code}`} value={c.name}>{c.name}</option>))}
+          </select>
+        </div>
+        
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">Customer State</label>
+          {formData.Customercountry === 'India' ? (
+            <select name="Customerstate" value={formData.Customerstate} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white">
+              <option value="">Select State</option>
+              {INDIA_STATES.map(state => (<option key={`cust-${state}`} value={state}>{state}</option>))}
+            </select>
+          ) : (
+            <input type="text" name="Customerstate" value={formData.Customerstate} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter State/Province"/>
+          )}
+        </div>
+        
+        {/* --- Other Text & Number Inputs (Corrected Labels) --- */}
+        {textNumberInputs.filter(f => !['deviceType','voltage','elementType','batchNo'].includes(f)).map((field) => (
+          <div key={field}>
+            <label className="block mb-1 font-medium text-gray-700">{getLabel(field)}</label>
+            <input
+              type={field.toLowerCase().includes('email') ? 'email' :
+                    field.toLowerCase().includes('date') || field.toLowerCase().includes('mapped') ? 'date' :
+                    field.toLowerCase().includes('no') || field.toLowerCase().includes('reading') || field.toLowerCase().includes('adhar') || field.toLowerCase().includes('pan') || field.toLowerCase().includes('mobile') || field.toLowerCase().includes('pin') ? 'number' :
+                    'text'}
+              name={field}
+              value={formData[field]}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            />
+          </div>
+        ))}
+
+        {/* --- File Inputs (Corrected Labels and Names) --- */}
+        <div className="md:col-span-3 border-t pt-4 mt-4">
+          <h3 className="text-xl font-semibold mb-4 text-blue-700">Document Uploads</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {fileInputs.map((file) => (
+              <div key={file.key}>
+                <label className="block mb-1 font-medium text-gray-700">{file.label}</label>
+                <input
+                  type="file"
+                  name={file.key} // Matches backend field name
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
             ))}
           </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-50 overflow-y-auto flex items-center justify-center p-4 transition-opacity duration-300">
-      <div className="relative bg-slate-800 w-full max-w-5xl rounded-xl shadow-2xl border border-yellow-400/30 max-h-[90vh] flex flex-col">
-        <MessageBox />
-
-        {/* Modal Header */}
-        <header className="flex justify-between items-center p-6 rounded-t-xl border-b border-yellow-400/50 bg-slate-700/50">
-          <h1 className="text-2xl font-extrabold text-yellow-400 flex items-center space-x-3">
-            <MapPin size={24} />
-            <span>Map New Device</span>
-          </h1>
-          <button
-            onClick={onClose}
-            className="text-yellow-400 hover:text-red-500 transition p-2 rounded-full hover:bg-slate-800"
-          >
-            <X size={24} />
-          </button>
-        </header>
-
-        {/* Tab Navigation */}
-        <div className="flex border-b border-slate-700 bg-slate-700 overflow-x-auto">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const status = getTabStatus(tab.id);
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setCurrentTab(tab.id)}
-                className={`flex items-center space-x-2 px-5 py-3 text-sm font-semibold transition-all duration-200 ${currentTab === tab.id
-                  ? 'border-b-4 border-yellow-400 text-yellow-400 bg-slate-800'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                  }`}
-              >
-                <Icon size={18} />
-                <span>{tab.label}</span>
-                {status === 'complete' && (
-                  <CheckCircle size={14} className="text-green-400" />
-                )}
-              </button>
-            );
-          })}
         </div>
 
-        {/* Modal Body - Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col flex-grow overflow-hidden">
-          <div className="p-6 overflow-y-auto flex-grow space-y-6">
-            {/* RFC Details (Always visible, simplified for space) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-4 border-b border-slate-700">
-              <FormInput label="Country" name="country" value={formData.country} onChange={handleInputChange} required options={countries} type="select" />
-              <FormInput label="State" name="state" value={formData.state} onChange={handleInputChange} required options={statesOptions} type="select" />
-              <FormInput label="Distributor" name="distributorName" value={formData.distributorName} onChange={handleInputChange} required options={distributorOptions} type="select" />
-              <FormInput label="Dealer" name="delerName" value={formData.delerName} onChange={handleInputChange} required options={dealerOptions} type="select" />
-            </div>
 
-            {/* Tab Content */}
-            {renderTabContent()}
-
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-between items-center p-4 bg-slate-700/50 rounded-b-xl border-t border-slate-700">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-500 transition shadow-md"
-            >
-              Cancel
-            </button>
-
-            {currentTab !== 'documents' && (
-              <button
-                type="button"
-                onClick={goToNextTab}
-                className="px-4 py-2 bg-yellow-400 text-black font-extrabold rounded-lg hover:bg-yellow-500 transition shadow-lg shadow-yellow-500/50 flex items-center space-x-2"
-              >
-                <span>Next Step</span>
-                <Plus size={16} />
-              </button>
-            )}
-
-            {currentTab === 'documents' && (
-              <button
-                type="submit"
-                className="px-6 py-2 bg-yellow-400 text-black font-extrabold rounded-lg hover:bg-yellow-500 transition shadow-lg shadow-yellow-500/50 disabled:opacity-50 flex items-center space-x-2"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Submitting...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle size={20} />
-                    <span>Final Submit</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// ----------------------------------------------------------------------
-// --- Main Component: ManufactureDashboard (Updated to pass token) ---
-// ----------------------------------------------------------------------
-function ManufactureDashboard() {
-  const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // *** IMPORTANT: Placeholder for your actual token management ***
-  // You would typically get this from your authentication context or localStorage
-  const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjMiLCJyb2xlIjoibWFudWZhY3R1cmVyIiwiaWF0IjoxNjcwNzMwMjYyfQ.Sg8NnL_6Q8T4x-wHwJtJ_Y7gK2QyV5Y4UoPz8';
-
-  useEffect(() => {
-    // Mock data loading
-    const mockDevices = [
-      { deviceId: 'DEV-001', imei: '123456789012345', vehicleNo: 'MH12AB1234', networkOperator: 'Vodafone', speed: 55, ignition: '1', lastUpdate: Date.now() - 300000 },
-      { deviceId: 'DEV-002', imei: '123456789012346', vehicleNo: 'KA03CD5678', networkOperator: 'Airtel', speed: 0, ignition: '0', lastUpdate: Date.now() - 600000 },
-      { deviceId: 'DEV-003', imei: '123456789012347', vehicleNo: 'UP45EF9012', networkOperator: 'Jio', speed: 82, ignition: '1', lastUpdate: Date.now() - 120000 },
-      { deviceId: 'DEV-004', imei: '123456789012348', vehicleNo: 'TN37GH3456', networkOperator: 'Vodafone', speed: 40, ignition: '1', lastUpdate: Date.now() - 10000 },
-      { deviceId: 'DEV-005', imei: '123456789012349', vehicleNo: 'RJ14IJ7890', networkOperator: 'Jio', speed: 10, ignition: '0', lastUpdate: Date.now() - 1000 },
-    ];
-
-    setTimeout(() => {
-      setDevices(mockDevices);
-      setLoading(false);
-    }, 800);
-  }, []);
-
-  const actions = useMemo(() => ([
-    { label: "Edit", icon: <Edit size={18} />, route: "/devices/edit" },
-    { label: "View", icon: <Eye size={18} />, route: "/devices/view" },
-    { label: "Certificates", icon: <FileText size={18} />, route: "/devices/certificates" },
-    { label: "Documents", icon: <File size={18} />, route: "/devices/documents" },
-    { label: "Data Log", icon: <Database size={18} />, route: "/devices/log" },
-    { label: "Live Tracking", icon: <MapPin size={18} />, route: "/devices/live" },
-  ]), []);
-
-  return (
-    <div className="relative min-h-screen bg-slate-900">
-      <ManufactureNavbar />
-      <div className="text-slate-200 font-sans">
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row items-center justify-between bg-gradient-to-b from-slate-900 to-slate-800 px-4 md:px-6 py-6 shadow-2xl">
-          <div className="flex items-center space-x-3 text-yellow-400 text-2xl font-extrabold mb-4 sm:mb-0">
-            <MapPin size={28} />
-            <span>Device Mapping Portal</span>
-          </div>
+        <div className="md:col-span-3 mt-6">
           <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2 bg-yellow-400 rounded-xl px-5 py-3 text-black text-sm font-extrabold hover:bg-yellow-500 transition shadow-xl shadow-yellow-500/50 transform hover:scale-[1.02] w-full sm:w-auto justify-center"
+            type="submit"
+            disabled={loading || packagesLoading}
+            className="w-full bg-blue-600 text-white px-3 py-3 rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:bg-gray-400 transition duration-150"
           >
-            <Plus size={18} />
-            <span>Map New Device</span>
+            {loading || packagesLoading ? 'Submitting...' : '💾 Submit All Data'}
           </button>
-        </header>
-
-        <div className="max-w-7xl mx-auto p-4 md:p-6">
-          {/* Quick Actions */}
-          <section className="bg-slate-800 rounded-xl mt-6 p-6 shadow-2xl border border-yellow-400/20 ring-1 ring-yellow-400/10">
-            <h2 className="text-yellow-400 font-extrabold text-xl mb-6 text-center">
-              Quick Actions
-            </h2>
-            <div className="flex flex-wrap justify-center gap-3 md:gap-4">
-              {actions.map((action, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col items-center justify-center p-4 bg-slate-700 rounded-lg text-slate-200 hover:bg-yellow-400 hover:text-black transition duration-200 cursor-pointer w-32 h-24 shadow-lg hover:shadow-yellow-500/50"
-                >
-                  {action.icon}
-                  <span className="mt-2 text-xs font-semibold">{action.label}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Device List (Simplified) */}
-          <section className="mt-8">
-            <h2 className="text-yellow-400 font-extrabold text-xl mb-4">Mapped Devices</h2>
-            {/* Table or list of devices here */}
-            {loading ? (
-              <p className="text-slate-400">Loading devices...</p>
-            ) : (
-              <div className="bg-slate-800 p-6 rounded-xl shadow-2xl border border-slate-700">
-                <p className="text-slate-300">Displaying {devices.length} mock devices. Actual device list implementation is needed here.</p>
-              </div>
-            )}
-          </section>
-
         </div>
-      </div>
-
-      {/* MapDeviceModal is rendered here */}
-      <MapDeviceModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        userToken={AUTH_TOKEN} // Pass the token to the modal
-      />
+      </form>
     </div>
   );
 }
 
-export default ManufactureDashboard;
-// You can use the ManufactureDashboard component as the default export.
-// For testing the modal in isolation, you can export MapDeviceModal, but typically you only export the main view.
-export { MapDeviceModal, FormInput, ManufactureDashboard };
+export default ManageMapDevices;
