@@ -388,7 +388,7 @@ function ManageBarcode() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-xs">
                                         <span className="inline-block px-3 py-1 leading-none rounded-full font-semibold bg-green-900/50 text-green-400">
-                                            Active
+                                          {item.status || 'N/A'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -430,7 +430,7 @@ function ManageBarcode() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-xs">
                             <span className="inline-block px-3 py-1 leading-none rounded-full font-semibold bg-yellow-900/50 text-yellow-400">
-                                Pending
+                               {item.status} 
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

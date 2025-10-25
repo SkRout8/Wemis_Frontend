@@ -919,7 +919,7 @@ function AllocateBarcode() {
                 <thead className="bg-gray-700 sticky top-0">
                   <tr>
                     <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                      <Briefcase size={14} className="inline mr-1" /> Distributor
+                      <Briefcase size={14} className="inline mr-1" /> Distributor & OEM
                     </th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
                       <User size={14} className="inline mr-1" />Dealer
@@ -941,7 +941,12 @@ function AllocateBarcode() {
                   {currentTableData.map((item, index) => {
                   const barcodeCount = item.allocatedBarCode?.length || 0;
 const primaryBarcode = item.allocatedBarCode?.[0]?.barCodeNo || "N/A";
-const partnerName = item.allocatedDistributorId?.contact_Person_Name || "NA";
+const partnerName = item.allocatedDistributorId?.contact_Person_Name
+  ? `${item.allocatedDistributorId.contact_Person_Name} (Distributor)`
+  : item.allocatedOemId?.contact_Person_Name
+  ? `${item.allocatedOemId.contact_Person_Name} (OEM)`
+  : "NA";
+
 
 
 
