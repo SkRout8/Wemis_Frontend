@@ -67,7 +67,7 @@ const SimDetailItem = ({ sim, index }) => (
     </div>
 );
 
-// --- The Main Device Details Sidebar (Unchanged) ---
+// --- The Main Device Details Sidebar (Unchanged from your previous code) ---
 const DeviceDetailsModal = ({ device, onClose, loading }) => {
     // Data Structure for mapping all your fields (sections)
     const sections = [
@@ -227,7 +227,7 @@ const DeviceDetailsModal = ({ device, onClose, loading }) => {
 };
 
 // ====================================================================
-//                             1. CERTIFICATE MODAL COMPONENT (NEW)
+//                             1. CERTIFICATE MODAL COMPONENT
 // ====================================================================
 
 const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading }) => {
@@ -499,7 +499,7 @@ const generateCertificatePDF = (doc, deviceData, options) => {
         // Section Title
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
-        doc.setTextColor(150, 80, 0);
+        doc.setTextColor(150, 80, 0); // Orange/Brown for section titles
         doc.text(section.title, margin, y);
         y += 4;
         
@@ -582,7 +582,7 @@ function DeviceMapreport() {
     const [modalDeviceDetails, setModalDeviceDetails] = useState(null);
     const [modalLoading, setModalLoading] = useState(false); // For View Details API call
 
-    // State for Certificate Modal (NEW)
+    // State for Certificate Modal
     const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
     const [isPdfDownloading, setIsPdfDownloading] = useState(false); // For PDF generation loading
 
@@ -616,19 +616,20 @@ function DeviceMapreport() {
     };
     // -------------------------------------------------------------------------
 
-    // --- API Fetch Function for Single Device View (Updated State) ---
+    // --- API Fetch Function for Single Device View (Shared for PDF/View) ---
     const fetchDeviceDetails = async (deviceId, setDetailsState, setLoadingState) => {
         const selectedDevice = mapDevices.find(device => device._id === deviceId);
 
         if (!selectedDevice || !selectedDevice.deviceNo) {
-            alert("Error: Could not find Device Number for the selected item.");
+            if (setDetailsState) setDetailsState({ error: "Could not find Device Number for the selected item." });
+            if (setLoadingState) setLoadingState(false);
             return null;
         }
         
         const deviceNoToFetch = selectedDevice.deviceNo;
 
-        setLoadingState(true);
-        setDetailsState(null); 
+        if (setLoadingState) setLoadingState(true);
+        if (setDetailsState) setDetailsState(null); 
 
         try {
             const token = contextToken || localStorage.getItem("token");
@@ -646,16 +647,16 @@ function DeviceMapreport() {
             );
 
             if (response.data?.mapDevice && typeof response.data.mapDevice === 'object' && !Array.isArray(response.data.mapDevice)) {
-                setDetailsState(response.data.mapDevice); 
-                return response.data.mapDevice;
+                if (setDetailsState) setDetailsState(response.data.mapDevice); 
+                return response.data.mapDevice; // Return data for PDF function
             } else {
-                setDetailsState({ error: `No detailed data found for Device No: ${deviceNoToFetch}` });
+                if (setDetailsState) setDetailsState({ error: `No detailed data found for Device No: ${deviceNoToFetch}` });
             }
         } catch (error) {
             console.error("Error fetching device details:", error);
-            setDetailsState({ error: `API call failed. Status: ${error.response?.status || error.message}` });
+            if (setDetailsState) setDetailsState({ error: `API call failed. Status: ${error.response?.status || error.message}` });
         } finally {
-            setLoadingState(false);
+            if (setLoadingState) setLoadingState(false);
         }
         return null;
     };
@@ -663,6 +664,7 @@ function DeviceMapreport() {
     const handleViewDetails = () => {
         if (!isSingleDeviceSelected) return;
         setIsViewModalOpen(true);
+        // Pass states for updating the modal's UI
         fetchDeviceDetails(selectedDeviceIds[0], setModalDeviceDetails, setModalLoading);
     };
     // -----------------------------------------------------------------
@@ -681,15 +683,13 @@ function DeviceMapreport() {
         let deviceData = null;
 
         try {
-            // First, fetch the full device data
-            const selectedDevice = mapDevices.find(device => device.deviceNo === deviceNo);
-            
+            const selectedDevice = mapDevices.find(d => d.deviceNo === deviceNo);
             if (!selectedDevice) {
                 throw new Error("Device not found in the list.");
             }
 
-            // We need to fetch the detailed data, similar to the view details
-            deviceData = await fetchDeviceDetails(selectedDevice._id, () => {}, () => {}); 
+            // Fetch the detailed data, but only set internal loading/error states for fetching
+            deviceData = await fetchDeviceDetails(selectedDevice._id, null, () => {}); 
 
             if (!deviceData) {
                 throw new Error("Failed to retrieve complete device data for PDF.");
@@ -709,7 +709,7 @@ function DeviceMapreport() {
             alert(`An error occurred during PDF generation: ${error.message}`);
         } finally {
             setIsPdfDownloading(false);
-            setIsCertificateModalOpen(false); // Close modal after successful or failed attempt
+            setIsCertificateModalOpen(false); // Close modal after action
         }
     };
     // -----------------------------------------------------------------
@@ -799,6 +799,7 @@ function DeviceMapreport() {
         );
     }
     
+    // Determine the device number for the Certificate Modal
     const selectedDeviceNo = isSingleDeviceSelected 
         ? mapDevices.find(d => d._id === selectedDeviceIds[0])?.deviceNo || null
         : null;
@@ -822,6 +823,7 @@ function DeviceMapreport() {
                     <ActionButton icon={Eye} label="View Details" onClick={handleViewDetails} />
                     <ActionButton icon={Edit} label="Edit" onClick={() => alert('Edit action for ' + selectedDeviceIds[0])} />
                     
+                    {/* Button to open the Certificate Modal */}
                     <ActionButton 
                         icon={FileText} 
                         label="Certificates (PDF)" 
@@ -851,6 +853,7 @@ function DeviceMapreport() {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Sim Details</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">State/Division</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">Vehicle Detail</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[100px]">**RTO**</th> {/* Added RTO Header */}
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Dealer(Technician)</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Customer Name</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">Customer Mobile</th>
@@ -883,9 +886,34 @@ function DeviceMapreport() {
                                         </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-100 font-medium">{device.deviceNo || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.simDetails?.map(s => s.simNo).join(', ') || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">{`${device.Customerstate || 'N/A'} / ${device.Customerdistrict || 'N/A'}`}</td>
+                                    
+                                    {/* SIM DETAILS COLUMN */}
+                                    <td className="px-6 py-4 text-gray-300 text-xs">
+                                        {device.simDetails && device.simDetails.length > 0 ? (
+                                            device.simDetails.map((sim, index) => (
+                                                <div key={index} className="flex flex-col mb-1 last:mb-0">
+                                                    <span className="font-medium text-gray-200">{sim.operator || 'N/A'}</span>
+                                                    <span className="text-gray-400 text-xs">{`(${sim.simNo || 'N/A'})`}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            'N/A'
+                                        )}
+                                    </td>
+                                    {/* ------------------- */}
+
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                                        {/* Concatenate State and District/Division */}
+                                        {`${device.Customerstate || 'N/A'} / ${device.Customerdistrict || 'N/A'}`}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.VehicleType || 'N/A'}</td>
+                                    
+                                    {/* Added RTO Data Cell */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300 font-medium">
+                                        {device.Rto || 'N/A'}
+                                    </td>
+                                    {/* ---------------------- */}
+
                                     <td className="px-6 py-4 whitespace-nowrap text-yellow-400 font-semibold">{device.delerName || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-100">{device.fullName || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.mobileNo || 'N/A'}</td>
@@ -896,7 +924,6 @@ function DeviceMapreport() {
                     </table>
                 </div>
             </div>
-          
 
             {/* View Details Sidebar Modal */}
             <DeviceDetailsModal 
