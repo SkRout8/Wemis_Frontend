@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import axios from "axios";
 import { 
     Zap, AlertTriangle, Edit, Eye, FileText, Folder, HardDrive, MapPin, Loader2, Info, X, 
-    Truck, Key, Phone, Mail, DollarSign, Calendar, UploadCloud, Link 
+    Truck, Key, Phone, Mail, DollarSign, Calendar, UploadCloud, Link, Download 
 } from "lucide-react"; 
 // Assuming the path to your UserAppContext is correct
 import { UserAppContext } from "../contexts/UserAppProvider"; 
@@ -19,8 +19,8 @@ const PulsingDotLoader = ({ text = "Loading data..." }) => (
     <div className="flex flex-col items-center justify-center p-8">
         <div className="flex space-x-2 justify-center items-center">
             <div className="h-4 w-4 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-            <div className="h-4 w-4 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-            <div className="h-4 w-4 bg-indigo-500 rounded-full animate-bounce"></div>
+            <div className="h-4 w-4 bg-indigo-500 bg-opacity-70 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+            <div className="h-4 w-4 bg-indigo-500 bg-opacity-50 rounded-full animate-bounce"></div>
         </div>
         <p className="mt-4 text-lg font-medium text-gray-300">{text}</p>
     </div>
@@ -28,7 +28,7 @@ const PulsingDotLoader = ({ text = "Loading data..." }) => (
 
 
 const DetailItem = ({ icon: Icon, label, value, isDocument = false }) => {
-    const isLink = isDocument && typeof value === 'string' && value.startsWith('http');
+    const isLink = isDocument && typeof value === 'string' && (value.startsWith('http') || value.startsWith('/'));
 
     return (
         <div className="flex items-start py-2 border-b border-gray-700/50">
@@ -67,7 +67,7 @@ const SimDetailItem = ({ sim, index }) => (
     </div>
 );
 
-// --- The Main Device Details Sidebar ---
+// --- The Main Device Details Sidebar (Unchanged) ---
 const DeviceDetailsModal = ({ device, onClose, loading }) => {
     // Data Structure for mapping all your fields (sections)
     const sections = [
@@ -226,21 +226,369 @@ const DeviceDetailsModal = ({ device, onClose, loading }) => {
     );
 };
 
+// ====================================================================
+//                             1. CERTIFICATE MODAL COMPONENT (NEW)
+// ====================================================================
+
+const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading }) => {
+    // State to hold the values from the dropdowns (as seen in the screenshot)
+    const [certificateOptions, setCertificateOptions] = useState({
+        copyType: 'Customer Copy', // Matches first dropdown
+        letterHead: 'Leather Head', // Matches second dropdown
+        allow: 'Allow',             // Matches third dropdown
+        certificateType: 'Installation' // Matches fourth dropdown
+    });
+
+    const handleChange = (e) => {
+        setCertificateOptions(prev => ({
+            ...prev,
+            [e.target.name]: e.target.value
+        }));
+    };
+
+    const handleDownloadClick = () => {
+        // Pass the deviceNo and selected options to the parent component's download function
+        onDownload(deviceNo, certificateOptions);
+    };
+
+    if (!isOpen) return null;
+
+    // Define Dropdown Options
+    const copyTypeOptions = ['Customer Copy', 'Dealer Copy', 'Manufacturer Copy'];
+    const letterHeadOptions = ['Leather Head', 'Plain Paper'];
+    const allowOptions = ['Allow', 'Restrict'];
+    const certificateTypeOptions = ['Installation', 'Renewal', 'Transfer'];
+
+
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black bg-opacity-60 transition-opacity" onClick={onClose}></div>
+
+            {/* Modal */}
+            <div className="flex items-center justify-center min-h-screen p-4">
+                <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 relative">
+                    
+                    {/* Header */}
+                    <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+                        <h3 className="text-xl font-bold text-yellow-400 flex items-center">
+                            <FileText size={20} className="mr-2" /> Certificates
+                        </h3>
+                        <button onClick={onClose} className="text-gray-400 hover:text-white transition p-1 rounded-full hover:bg-gray-700">
+                            <X size={24} />
+                        </button>
+                    </div>
+
+                    {/* Content/Form */}
+                    <div className="p-6 space-y-4">
+                        
+                        <div className="space-y-1">
+                            <label htmlFor="copyType" className="block text-sm font-medium text-gray-300">Copy Type</label>
+                            <select 
+                                id="copyType"
+                                name="copyType"
+                                value={certificateOptions.copyType}
+                                onChange={handleChange}
+                                className="block w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 appearance-none transition duration-150"
+                            >
+                                {copyTypeOptions.map(option => (
+                                    <option key={option} value={option}>{option}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <label htmlFor="letterHead" className="block text-sm font-medium text-gray-300">Letter Head</label>
+                            <select 
+                                id="letterHead"
+                                name="letterHead"
+                                value={certificateOptions.letterHead}
+                                onChange={handleChange}
+                                className="block w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 appearance-none transition duration-150"
+                            >
+                                {letterHeadOptions.map(option => (
+                                    <option key={option} value={option}>{option}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <label htmlFor="allow" className="block text-sm font-medium text-gray-300">Allow</label>
+                            <select 
+                                id="allow"
+                                name="allow"
+                                value={certificateOptions.allow}
+                                onChange={handleChange}
+                                className="block w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 appearance-none transition duration-150"
+                            >
+                                {allowOptions.map(option => (
+                                    <option key={option} value={option}>{option}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <label htmlFor="certificateType" className="block text-sm font-medium text-gray-300">Certificate</label>
+                            <select 
+                                id="certificateType"
+                                name="certificateType"
+                                value={certificateOptions.certificateType}
+                                onChange={handleChange}
+                                className="block w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 appearance-none transition duration-150"
+                            >
+                                {certificateTypeOptions.map(option => (
+                                    <option key={option} value={option}>{option}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Footer/Action */}
+                    <div className="p-6 border-t border-gray-700 flex justify-end">
+                        <button 
+                            onClick={handleDownloadClick} 
+                            disabled={isDownloading}
+                            className={`px-6 py-2 rounded-xl font-bold transition-all duration-300 flex items-center gap-2 shadow-lg 
+                                ${isDownloading 
+                                    ? 'bg-indigo-700 text-gray-400 cursor-not-allowed' 
+                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/50'
+                                }`}
+                        >
+                            {isDownloading ? (
+                                <><Loader2 size={18} className="animate-spin" /> Downloading...</>
+                            ) : (
+                                <><Download size={18} /> Download</>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// ====================================================================
+//                             2. PDF GENERATION LOGIC (UPDATED)
+// ====================================================================
+
+// PDF generation logic now accepts selected options
+const generateCertificatePDF = (doc, deviceData, options) => {
+    let y = 15;
+    const margin = 15;
+    const lineHeight = 8;
+    const pageHeight = doc.internal.pageSize.height;
+
+    const checkPageBreak = (requiredSpace) => {
+        if (y + requiredSpace > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+            return true;
+        }
+        return false;
+    };
+    
+    // --- Title & Header ---
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(30, 30, 30);
+    doc.text(`Device ${options.certificateType} Certificate`, margin, y);
+    y += 10;
+
+    // Subtitle based on selected options
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(12);
+    doc.setTextColor(50, 50, 50);
+    doc.text(`Copy Type: ${options.copyType} | Letter Head: ${options.letterHead} | Access: ${options.allow}`, margin, y);
+    y += 8;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Device ID: ${deviceData.deviceNo || 'N/A'}`, margin, y);
+    doc.text(`Customer: ${deviceData.fullName || 'N/A'}`, doc.internal.pageSize.width - margin, y, { align: 'right' });
+    y += 5;
+    
+    doc.setDrawColor(50, 50, 50);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, doc.internal.pageSize.width - margin, y);
+    y += 5;
+    
+    // 1. Print SIM Details
+    checkPageBreak(deviceData.simDetails ? deviceData.simDetails.length * 8 + 15 : 10);
+    
+    if (deviceData.simDetails && deviceData.simDetails.length > 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(50, 70, 150); // Indigo
+        doc.text("SIM Card Information", margin, y);
+        y += 6;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        deviceData.simDetails.forEach((sim, i) => {
+            const simText = `Slot ${i + 1} | Operator: ${sim.operator || 'N/A'} | SIM No: ${sim.simNo || 'N/A'} | Validity: ${sim.validityDate || 'N/A'}`;
+            doc.text(simText, margin + 5, y);
+            y += 5;
+        });
+        y += 4;
+    }
+    
+    // 2. Print Dynamic Sections
+    const sections = [
+        { 
+            title: "Customer & Contact Information", 
+            fields: [
+                { label: "Full Name", key: "fullName" }, { label: "Mobile No.", key: "mobileNo" },
+                { label: "Email", key: "email" }, { label: "Dealer/Technician Name", key: "delerName" },
+                { label: "GSTIN No.", key: "GstinNo" }, { label: "Pan No.", key: "PanNo" },
+                { label: "Aadhaar No.", key: "AdharNo" }, { label: "Driver License No.", key: "DriverLicenseNo" },
+            ]
+        },
+        { 
+            title: "Vehicle & Registration Details", 
+            fields: [
+                { label: "Registration No.", key: "RegistrationNo" }, { label: "RTO", key: "Rto" },
+                { label: "Vehicle Type", key: "VehicleType" }, { label: "Make/Model", key: "MakeModel" },
+                { label: "Chassis Number", key: "ChassisNumber" }, { label: "Engine Number", key: "EngineNumber" },
+                { label: "Model Year", key: "ModelYear" }, { label: "Vehicle Birth", key: "VechileBirth" },
+                { label: "KM Reading", key: "VehicleKMReading" },
+            ]
+        },
+        { 
+            title: "Device & Installation Details", 
+            fields: [
+                { label: "Device No.", key: "deviceNo" }, { label: "Device Type", key: "deviceType" },
+                { label: "Element Type", key: "elementType" }, { label: "Voltage", key: "voltage" },
+                { label: "No. of Panic Buttons", key: "NoOfPanicButtons" }, { label: "Mapped Date", key: "MappedDate" },
+                { label: "Batch No.", key: "batchNo" }, { label: "Distributor Name ID", key: "distributorName" },
+                { label: "Manufacturer ID", key: "manufacturId" },
+            ]
+        },
+        { 
+            title: "Policy & Document Renewal Dates", 
+            fields: [
+                { label: "Insurance Renew Date", key: "InsuranceRenewDate" }, { label: "Pollution Renew Date", key: "PollutionRenewdate" },
+                { label: "Invoice No.", key: "InvoiceNo" }, { label: "Date (Submission)", key: "date" },
+            ]
+        },
+        { 
+            title: "Address Information", 
+            fields: [
+                { label: "Complete Address", key: "CompliteAddress" }, { label: "Pincode", key: "PinCode" },
+                { label: "State", key: "Customerstate" }, { label: "District", key: "Customerdistrict" },
+                { label: "Country", key: "Customercountry" },
+            ]
+        },
+        { 
+            title: "Documents (Uploads) - Links", 
+            fields: [
+                { label: "RC Document Link", key: "RcDocument" }, { label: "Aadhaar Card Link", key: "AdharCardDocument" },
+                { label: "Pan Card Link", key: "PanCardDocument" }, { label: "Device Document Link", key: "DeviceDocument" },
+                { label: "Invoice Document Link", key: "InvoiceDocument" }, { label: "Panic Button w/ Sticker Link", key: "PanicButtonWithSticker" },
+                { label: "Signature Document Link", key: "SignatureDocument" }, { label: "Vehicle ID Document Link", key: "VechileIDocument" },
+            ]
+        }
+    ];
+
+    sections.forEach(section => {
+        const numFields = section.fields.length;
+        const sectionHeight = Math.ceil(numFields / 2) * lineHeight * 1.5 + 15;
+        checkPageBreak(sectionHeight);
+
+        // Section Title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(150, 80, 0);
+        doc.text(section.title, margin, y);
+        y += 4;
+        
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.1);
+        doc.line(margin, y, doc.internal.pageSize.width - margin, y);
+        y += 3;
+        
+        // Fields in two columns
+        doc.setFontSize(9);
+        doc.setTextColor(50, 50, 50);
+        
+        const columnWidth = (doc.internal.pageSize.width - 2 * margin) / 2;
+        const labelWidth = 40;
+        const valueWidth = columnWidth - labelWidth - 2;
+
+        for (let i = 0; i < numFields; i += 2) {
+            const field1 = section.fields[i];
+            const field2 = section.fields[i + 1];
+            let currentY = y;
+
+            // Left Column
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${field1.label}:`, margin, currentY);
+            doc.setFont('helvetica', 'normal');
+            
+            const value1 = String(deviceData[field1.key] || "N/A");
+            const splitText1 = doc.splitTextToSize(value1, valueWidth);
+            doc.text(splitText1, margin + labelWidth, currentY);
+            const height1 = splitText1.length * 4;
+
+            // Right Column
+            let height2 = 0;
+            if (field2) {
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${field2.label}:`, margin + columnWidth, currentY);
+                doc.setFont('helvetica', 'normal');
+                
+                const value2 = String(deviceData[field2.key] || "N/A");
+                const splitText2 = doc.splitTextToSize(value2, valueWidth);
+                doc.text(splitText2, margin + columnWidth + labelWidth, currentY);
+                height2 = splitText2.length * 4;
+            }
+            
+            y += Math.max(height1, height2) + 2; 
+            checkPageBreak(lineHeight);
+        }
+        y += 4;
+    });
+    
+    // --- Footer/Disclaimer ---
+    checkPageBreak(15);
+    doc.setDrawColor(150, 150, 150);
+    doc.line(margin, y, doc.internal.pageSize.width - margin, y);
+    y += 5;
+    
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, margin, y);
+    doc.text(`This document is based on the data available in the system at the time of generation.`, doc.internal.pageSize.width - margin, y, { align: 'right' });
+    
+    // Save PDF
+    doc.save(`${options.certificateType}_Certificate_${deviceData.deviceNo}.pdf`);
+};
+
+// ====================================================================
+//                             3. MAIN COMPONENT (DeviceMapreport)
+// ====================================================================
 
 function DeviceMapreport() {
     const [mapDevices, setMapDevices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedDeviceIds, setSelectedDeviceIds] = useState([]); 
     const { token: contextToken } = useContext(UserAppContext);
+    const selectAllRef = useRef(null);
 
     // State for View Sidebar
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [modalDeviceDetails, setModalDeviceDetails] = useState(null);
-    const [modalLoading, setModalLoading] = useState(false);
+    const [modalLoading, setModalLoading] = useState(false); // For View Details API call
+
+    // State for Certificate Modal (NEW)
+    const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
+    const [isPdfDownloading, setIsPdfDownloading] = useState(false); // For PDF generation loading
 
     const isSingleDeviceSelected = selectedDeviceIds.length === 1;
 
-    // --- Action Button Component (Updated Style) ---
+    // --- Action Button Component (Unchanged) ---
     const ActionButton = ({ icon: Icon, label, onClick, isCertificate = false }) => {
         const isDisabled = !isSingleDeviceSelected;
         const tooltip = 'Select exactly one device to perform this action.';
@@ -268,23 +616,19 @@ function DeviceMapreport() {
     };
     // -------------------------------------------------------------------------
 
-    // --- API Fetch Function for Single Device View ---
-    const fetchDeviceDetails = async () => {
-        if (!isSingleDeviceSelected) return;
-
-        const selectedDeviceId = selectedDeviceIds[0];
-        const selectedDevice = mapDevices.find(device => device._id === selectedDeviceId);
+    // --- API Fetch Function for Single Device View (Updated State) ---
+    const fetchDeviceDetails = async (deviceId, setDetailsState, setLoadingState) => {
+        const selectedDevice = mapDevices.find(device => device._id === deviceId);
 
         if (!selectedDevice || !selectedDevice.deviceNo) {
             alert("Error: Could not find Device Number for the selected item.");
-            return;
+            return null;
         }
         
         const deviceNoToFetch = selectedDevice.deviceNo;
 
-        setModalLoading(true);
-        setIsModalOpen(true);
-        setModalDeviceDetails(null); 
+        setLoadingState(true);
+        setDetailsState(null); 
 
         try {
             const token = contextToken || localStorage.getItem("token");
@@ -302,252 +646,71 @@ function DeviceMapreport() {
             );
 
             if (response.data?.mapDevice && typeof response.data.mapDevice === 'object' && !Array.isArray(response.data.mapDevice)) {
-                setModalDeviceDetails(response.data.mapDevice); 
+                setDetailsState(response.data.mapDevice); 
+                return response.data.mapDevice;
             } else {
-                setModalDeviceDetails({ error: `No detailed data found for Device No: ${deviceNoToFetch}` });
+                setDetailsState({ error: `No detailed data found for Device No: ${deviceNoToFetch}` });
             }
         } catch (error) {
             console.error("Error fetching device details:", error);
-            setModalDeviceDetails({ error: `API call failed. Status: ${error.response?.status || error.message}` });
+            setDetailsState({ error: `API call failed. Status: ${error.response?.status || error.message}` });
         } finally {
-            setModalLoading(false);
+            setLoadingState(false);
         }
+        return null;
+    };
+    
+    const handleViewDetails = () => {
+        if (!isSingleDeviceSelected) return;
+        setIsViewModalOpen(true);
+        fetchDeviceDetails(selectedDeviceIds[0], setModalDeviceDetails, setModalLoading);
     };
     // -----------------------------------------------------------------
 
 
-    // --- PDF Generation Function (New Addition) ---
-    const downloadCertificatePDF = async () => {
+    // --- Certificate Download Handler (NEW/UPDATED) ---
+    const handleOpenCertificateModal = () => {
         if (!isSingleDeviceSelected) return;
+        setIsCertificateModalOpen(true);
+    };
 
-        const selectedDeviceId = selectedDeviceIds[0];
-        const selectedDevice = mapDevices.find(device => device._id === selectedDeviceId);
-
-        if (!selectedDevice || !selectedDevice.deviceNo) {
-            alert("Error: Could not find Device Number for the selected item.");
-            return;
-        }
+    const downloadCertificatePDF = async (deviceNo, options) => {
+        if (!deviceNo) return;
         
-        const deviceNoToFetch = selectedDevice.deviceNo;
-        
-        setModalLoading(true);
+        setIsPdfDownloading(true);
         let deviceData = null;
 
         try {
-            const token = contextToken || localStorage.getItem("token");
-            if (!token) throw new Error("Authentication token not found.");
+            // First, fetch the full device data
+            const selectedDevice = mapDevices.find(device => device.deviceNo === deviceNo);
+            
+            if (!selectedDevice) {
+                throw new Error("Device not found in the list.");
+            }
 
-            const response = await axios.post(
-                "https://wemis-backend.onrender.com/manufactur/viewAMapDeviceInManufactur",
-                { deviceNo: deviceNoToFetch }, 
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`, 
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
+            // We need to fetch the detailed data, similar to the view details
+            deviceData = await fetchDeviceDetails(selectedDevice._id, () => {}, () => {}); 
 
-            if (response.data?.mapDevice && typeof response.data.mapDevice === 'object' && !Array.isArray(response.data.mapDevice)) {
-                deviceData = response.data.mapDevice;
-            } else {
-                throw new Error(`No detailed data found for Device No: ${deviceNoToFetch}`);
+            if (!deviceData) {
+                throw new Error("Failed to retrieve complete device data for PDF.");
             }
         } catch (error) {
             console.error("Error fetching device details for PDF:", error);
             alert(`Failed to fetch device details for PDF: ${error.message}`);
-            setModalLoading(false);
+            setIsPdfDownloading(false);
             return;
         }
-
-        // --- PDF Generation Logic ---
-        const doc = new jsPDF('p', 'mm', 'a4');
-        let y = 15;
-        const margin = 15;
-        const lineHeight = 8; // Increased line height for better spacing
-        const pageHeight = doc.internal.pageSize.height;
-
-        // Helper to check for page break
-        const checkPageBreak = (requiredSpace) => {
-            if (y + requiredSpace > pageHeight - margin) {
-                doc.addPage();
-                y = margin;
-                return true;
-            }
-            return false;
-        };
         
-        // --- Title & Header ---
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(22);
-        doc.setTextColor(30, 30, 30); // Dark grey
-        doc.text("Device Installation Certificate", margin, y);
-        y += 10;
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100); // Medium grey
-        doc.text(`Device ID: ${deviceData.deviceNo || 'N/A'}`, margin, y);
-        doc.text(`Customer: ${deviceData.fullName || 'N/A'}`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-        y += 5;
-        
-        doc.setDrawColor(50, 50, 50);
-        doc.setLineWidth(0.5);
-        doc.line(margin, y, doc.internal.pageSize.width - margin, y);
-        y += 5;
-        
-        // 1. Print SIM Details
-        checkPageBreak(deviceData.simDetails ? deviceData.simDetails.length * 8 + 15 : 10);
-        
-        if (deviceData.simDetails && deviceData.simDetails.length > 0) {
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(14);
-            doc.setTextColor(50, 70, 150); // Indigo
-            doc.text("SIM Card Information", margin, y);
-            y += 6;
-            
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            deviceData.simDetails.forEach((sim, i) => {
-                const simText = `Slot ${i + 1} | Operator: ${sim.operator || 'N/A'} | SIM No: ${sim.simNo || 'N/A'} | Validity: ${sim.validityDate || 'N/A'}`;
-                doc.text(simText, margin + 5, y);
-                y += 5;
-            });
-            y += 4;
+        try {
+            const doc = new jsPDF('p', 'mm', 'a4');
+            generateCertificatePDF(doc, deviceData, options);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert(`An error occurred during PDF generation: ${error.message}`);
+        } finally {
+            setIsPdfDownloading(false);
+            setIsCertificateModalOpen(false); // Close modal after successful or failed attempt
         }
-        
-        // 2. Print Dynamic Sections
-        const sections = [
-            { 
-                title: "Customer & Contact Information", 
-                fields: [
-                    { label: "Full Name", key: "fullName" }, { label: "Mobile No.", key: "mobileNo" },
-                    { label: "Email", key: "email" }, { label: "Dealer/Technician Name", key: "delerName" },
-                    { label: "GSTIN No.", key: "GstinNo" }, { label: "Pan No.", key: "PanNo" },
-                    { label: "Aadhaar No.", key: "AdharNo" }, { label: "Driver License No.", key: "DriverLicenseNo" },
-                ]
-            },
-            { 
-                title: "Vehicle & Registration Details", 
-                fields: [
-                    { label: "Registration No.", key: "RegistrationNo" }, { label: "RTO", key: "Rto" },
-                    { label: "Vehicle Type", key: "VehicleType" }, { label: "Make/Model", key: "MakeModel" },
-                    { label: "Chassis Number", key: "ChassisNumber" }, { label: "Engine Number", key: "EngineNumber" },
-                    { label: "Model Year", key: "ModelYear" }, { label: "Vehicle Birth", key: "VechileBirth" },
-                    { label: "KM Reading", key: "VehicleKMReading" },
-                ]
-            },
-            { 
-                title: "Device & Installation Details", 
-                fields: [
-                    { label: "Device No.", key: "deviceNo" }, { label: "Device Type", key: "deviceType" },
-                    { label: "Element Type", key: "elementType" }, { label: "Voltage", key: "voltage" },
-                    { label: "No. of Panic Buttons", key: "NoOfPanicButtons" }, { label: "Mapped Date", key: "MappedDate" },
-                    { label: "Batch No.", key: "batchNo" }, { label: "Distributor Name ID", key: "distributorName" },
-                    { label: "Manufacturer ID", key: "manufacturId" },
-                ]
-            },
-            { 
-                title: "Policy & Document Renewal Dates", 
-                fields: [
-                    { label: "Insurance Renew Date", key: "InsuranceRenewDate" }, { label: "Pollution Renew Date", key: "PollutionRenewdate" },
-                    { label: "Invoice No.", key: "InvoiceNo" }, { label: "Date (Submission)", key: "date" },
-                ]
-            },
-            { 
-                title: "Address Information", 
-                fields: [
-                    { label: "Complete Address", key: "CompliteAddress" }, { label: "Pincode", key: "PinCode" },
-                    { label: "State", key: "Customerstate" }, { label: "District", key: "Customerdistrict" },
-                    { label: "Country", key: "Customercountry" },
-                ]
-            },
-            { 
-                title: "Documents (Uploads) - Links", 
-                fields: [
-                    { label: "RC Document Link", key: "RcDocument" }, { label: "Aadhaar Card Link", key: "AdharCardDocument" },
-                    { label: "Pan Card Link", key: "PanCardDocument" }, { label: "Device Document Link", key: "DeviceDocument" },
-                    { label: "Invoice Document Link", key: "InvoiceDocument" }, { label: "Panic Button w/ Sticker Link", key: "PanicButtonWithSticker" },
-                    { label: "Signature Document Link", key: "SignatureDocument" }, { label: "Vehicle ID Document Link", key: "VechileIDocument" },
-                ]
-            }
-        ];
-
-        sections.forEach(section => {
-            const numFields = section.fields.length;
-            const sectionHeight = Math.ceil(numFields / 2) * lineHeight * 1.5 + 15; // Estimate required space
-            checkPageBreak(sectionHeight);
-
-            // Section Title
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
-            doc.setTextColor(150, 80, 0); // Orange/Brown for section titles
-            doc.text(section.title, margin, y);
-            y += 4;
-            
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.1);
-            doc.line(margin, y, doc.internal.pageSize.width - margin, y);
-            y += 3;
-            
-            // Fields in two columns
-            doc.setFontSize(9);
-            doc.setTextColor(50, 50, 50);
-            
-            const columnWidth = (doc.internal.pageSize.width - 2 * margin) / 2;
-            const labelWidth = 40; // Fixed width for labels
-            const valueWidth = columnWidth - labelWidth - 2;
-
-            for (let i = 0; i < numFields; i += 2) {
-                const field1 = section.fields[i];
-                const field2 = section.fields[i + 1];
-                let currentY = y;
-
-                // Left Column
-                doc.setFont('helvetica', 'bold');
-                doc.text(`${field1.label}:`, margin, currentY);
-                doc.setFont('helvetica', 'normal');
-                
-                const value1 = String(deviceData[field1.key] || "N/A");
-                const splitText1 = doc.splitTextToSize(value1, valueWidth);
-                doc.text(splitText1, margin + labelWidth, currentY);
-                const height1 = splitText1.length * 4;
-
-                // Right Column
-                let height2 = 0;
-                if (field2) {
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(`${field2.label}:`, margin + columnWidth, currentY);
-                    doc.setFont('helvetica', 'normal');
-                    
-                    const value2 = String(deviceData[field2.key] || "N/A");
-                    const splitText2 = doc.splitTextToSize(value2, valueWidth);
-                    doc.text(splitText2, margin + columnWidth + labelWidth, currentY);
-                    height2 = splitText2.length * 4;
-                }
-                
-                // Advance Y position based on the taller column
-                y += Math.max(height1, height2) + 2; 
-                checkPageBreak(lineHeight);
-            }
-            y += 4; // Space after section
-        });
-        
-        // --- Footer/Disclaimer ---
-        checkPageBreak(15);
-        doc.setDrawColor(150, 150, 150);
-        doc.line(margin, y, doc.internal.pageSize.width - margin, y);
-        y += 5;
-        
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(8);
-        doc.setTextColor(150, 150, 150);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, margin, y);
-        doc.text(`This document is based on the data available in the system at the time of generation.`, doc.internal.pageSize.width - margin, y, { align: 'right' });
-        
-        // Save PDF
-        doc.save(`Device_Certificate_${deviceNoToFetch}.pdf`);
-        setModalLoading(false);
     };
     // -----------------------------------------------------------------
 
@@ -611,6 +774,12 @@ function DeviceMapreport() {
     const isAllSelected = mapDevices.length > 0 && selectedDeviceIds.length === mapDevices.length;
     const isIndeterminate = selectedDeviceIds.length > 0 && !isAllSelected;
 
+    useEffect(() => {
+        if (selectAllRef.current) {
+            selectAllRef.current.indeterminate = isIndeterminate;
+        }
+    }, [isIndeterminate]);
+
 
     if (loading) {
         return (
@@ -629,11 +798,15 @@ function DeviceMapreport() {
             </div>
         );
     }
+    
+    const selectedDeviceNo = isSingleDeviceSelected 
+        ? mapDevices.find(d => d._id === selectedDeviceIds[0])?.deviceNo || null
+        : null;
 
     return (
         <div className="p-4 md:p-8 bg-gray-900 min-h-screen text-gray-100">
             {/* Loading overlay for PDF generation */}
-            {modalLoading && (
+            {isPdfDownloading && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center">
                     <PulsingDotLoader text="Generating and downloading PDF certificate..." />
                 </div>
@@ -646,13 +819,13 @@ function DeviceMapreport() {
                 
                 {/* ACTION BUTTONS ROW */}
                 <div className="mt-6 flex space-x-4 p-4 bg-gray-800 rounded-xl border border-indigo-700/50 shadow-xl">
-                    <ActionButton icon={Eye} label="View Details" onClick={fetchDeviceDetails} />
+                    <ActionButton icon={Eye} label="View Details" onClick={handleViewDetails} />
                     <ActionButton icon={Edit} label="Edit" onClick={() => alert('Edit action for ' + selectedDeviceIds[0])} />
-                    {/* Updated Certificate Button to call PDF function */}
+                    
                     <ActionButton 
                         icon={FileText} 
                         label="Certificates (PDF)" 
-                        onClick={downloadCertificatePDF} 
+                        onClick={handleOpenCertificateModal} 
                         isCertificate={true}
                     />
                 </div>
@@ -665,92 +838,82 @@ function DeviceMapreport() {
                         <thead className="sticky top-0 bg-gray-900/90 backdrop-blur-sm z-10 border-b border-indigo-500/50">
                             <tr>
                                 <th className="px-4 py-3 text-left min-w-[50px]">
-                                    <input type="checkbox" className="h-4 w-4 text-indigo-500 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 cursor-pointer checked:bg-indigo-500 checked:border-indigo-500" checked={isAllSelected} ref={input => { if (input) input.indeterminate = isIndeterminate; }} onChange={handleSelectAll} />
+                                    <input 
+                                        type="checkbox" 
+                                        className="h-4 w-4 text-indigo-500 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 cursor-pointer checked:bg-indigo-500 checked:border-indigo-500" 
+                                        checked={isAllSelected} 
+                                        ref={selectAllRef} 
+                                        onChange={handleSelectAll} 
+                                    />
                                 </th>
-                                
-                                <th className="px-2 py-3 text-left font-semibold text-xs text-indigo-400 uppercase tracking-wider min-w-[50px]"># Detail</th>
-                                <th className="px-4 py-3 text-left font-semibold text-xs text-indigo-400 uppercase tracking-wider min-w-[120px]">Device No</th>
-                                <th className="px-4 py-3 text-left font-semibold text-xs text-indigo-400 uppercase tracking-wider min-w-[300px]">Sim Details</th>
-                                <th className="px-4 py-3 text-left font-semibold text-xs text-indigo-400 uppercase tracking-wider min-w-[150px]">State/RTO</th>
-                                <th className="px-4 py-3 text-left font-semibold text-xs text-indigo-400 uppercase tracking-wider min-w-[200px]">Vehicle Detail</th>
-                                <th className="px-4 py-3 text-left font-semibold text-xs text-indigo-400 uppercase tracking-wider min-w-[150px]">Dealer/Technician</th>
-                                <th className="px-4 py-3 text-left font-semibold text-xs text-indigo-400 uppercase tracking-wider min-w-[120px]">Customer Name</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]"># Info</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Device No.</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Sim Details</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">State/Division</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">Vehicle Detail</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Dealer(Technician)</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Customer Name</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">Customer Mobile</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[200px]">Customer Email</th>
                             </tr>
                         </thead>
-                        
-                        <tbody className="divide-y divide-gray-700">
-                            {mapDevices.map((item) => (
+                        <tbody className="divide-y divide-gray-700/50">
+                            {mapDevices.map((device) => (
                                 <tr 
-                                    key={item._id} 
-                                    className={`transition duration-150 ease-in-out cursor-pointer ${selectedDeviceIds.includes(item._id) ? 'bg-gray-700/50' : 'bg-gray-800 hover:bg-gray-700/30'}`}
-                                    onClick={(e) => {
-                                        // Ignore click if target is checkbox or button (for better UX)
-                                        if (e.target.type !== 'checkbox' && e.target.tagName !== 'BUTTON') {
-                                            setSelectedDeviceIds([item._id]);
-                                            fetchDeviceDetails();
-                                        }
-                                    }}
+                                    key={device._id} 
+                                    className={`hover:bg-gray-700/50 transition duration-150 ${selectedDeviceIds.includes(device._id) ? 'bg-indigo-900/40' : ''}`}
                                 >
-                                    <td className="px-4 py-3">
-                                        <input type="checkbox" className="h-4 w-4 text-indigo-500 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 cursor-pointer checked:bg-indigo-500 checked:border-indigo-500" checked={selectedDeviceIds.includes(item._id)} onChange={(e) => handleSelectOne(e, item._id)} onClick={(e) => e.stopPropagation()} />
+                                    <td className="px-4 py-4 whitespace-nowrap">
+                                        <input 
+                                            type="checkbox" 
+                                            className="h-4 w-4 text-indigo-500 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 cursor-pointer checked:bg-indigo-500 checked:border-indigo-500"
+                                            checked={selectedDeviceIds.includes(device._id)}
+                                            onChange={(e) => handleSelectOne(e, device._id)}
+                                        />
                                     </td>
-                                    
-                                    <td className="px-2 py-3">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation(); // Prevent row click from triggering
-                                                setSelectedDeviceIds([item._id]);
-                                                fetchDeviceDetails();
-                                            }} 
-                                            className="flex items-center justify-center text-xs px-2 py-1 bg-yellow-500 text-gray-900 font-medium rounded-md hover:bg-yellow-600 transition shadow-md"
+                                            onClick={() => {
+                                                setSelectedDeviceIds([device._id]); // Auto-select on Info click
+                                                handleViewDetails();
+                                            }}
+                                            className="inline-flex items-center text-indigo-400 hover:text-indigo-300 font-semibold text-xs border border-indigo-600 px-3 py-1 rounded-full transition"
                                         >
-                                            <Eye size={14} className="mr-1" /> View
+                                            <Info size={14} className="mr-1" /> Info
                                         </button>
                                     </td>
-                                    
-                                    <td className="px-4 py-3 font-bold text-white">{item.deviceNo || "N/A"}</td>
-                                    <td className="px-4 py-3 text-gray-300">
-                                        {item.simDetails && item.simDetails.length > 0 ? (
-                                            <ul className="space-y-1">
-                                                {item.simDetails.map((sim, i) => (
-                                                    <li key={i} className="text-xs">
-                                                        <span  className="font-medium text-yellow-400">{sim.operator || "Operator N/A"}</span>
-                                                        <span className="text-gray-400"> | SIM: {sim.simNo || "N/A"}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (<span className="text-gray-500 italic">No SIM details</span>)}
-                                    </td>
-                                    
-                                    <td className="px-4 py-3 text-gray-300">
-                                        <p className="font-medium">{item.Customerstate || item.state || "N/A"}</p>
-                                        {item.Rto && (<p className="text-xs text-yellow-500 mt-0.5">RTO: {item.Rto}</p>)}
-                                    </td>
-                                    <td className="px-4 py-3 text-gray-300">
-                                        <p><span className="font-medium text-white">{item.VehicleType || "N/A"}</span> / {item.MakeModel || "N/A"}</p>
-                                        <p className="text-xs text-gray-400">Reg No: {item.RegistrationNo || "N/A"}</p>
-                                    </td>
-                                    <td className="px-4 py-3 font-medium text-indigo-400">{item.delerName || "N/A"}</td>
-                                    <td className="px-4 py-3 font-medium text-gray-200">{item.fullName || "N/A"}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-100 font-medium">{device.deviceNo || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.simDetails?.map(s => s.simNo).join(', ') || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">{`${device.Customerstate || 'N/A'} / ${device.Customerdistrict || 'N/A'}`}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.VehicleType || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-yellow-400 font-semibold">{device.delerName || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-100">{device.fullName || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.mobileNo || 'N/A'}</td>
+                                    <td className="px-6 py-4 text-gray-300">{device.email || 'N/A'}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
             </div>
-            
-            <footer className="mt-6 text-right text-sm text-gray-500">
-                Total Mapped Devices: <span className="font-bold text-indigo-500">{mapDevices.length}</span>
-            </footer>
+          
 
-            {/* Device Details Modal (now a Sidebar) */}
-            {isModalOpen && (
-                <DeviceDetailsModal 
-                    device={modalDeviceDetails} 
-                    onClose={() => setIsModalOpen(false)} 
-                    loading={modalLoading}
-                />
-            )}
+            {/* View Details Sidebar Modal */}
+            <DeviceDetailsModal 
+                device={modalDeviceDetails} 
+                onClose={() => setIsViewModalOpen(false)} 
+                loading={modalLoading} 
+                isOpen={isViewModalOpen}
+            />
+
+            {/* NEW: Certificate Selection Modal */}
+            <CertificateModal
+                isOpen={isCertificateModalOpen}
+                onClose={() => setIsCertificateModalOpen(false)}
+                deviceNo={selectedDeviceNo}
+                onDownload={downloadCertificatePDF}
+                isDownloading={isPdfDownloading}
+            />
         </div>
     );
 }
