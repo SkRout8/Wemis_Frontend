@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useRef } from "react";
+import React, { useEffect, useState, useContext, useRef, useMemo } from "react";
 import axios from "axios";
 import { 
     Zap, AlertTriangle, Edit, Eye, FileText, MapPin, Loader2, Info, X, 
@@ -12,21 +12,22 @@ import { UserAppContext } from "../contexts/UserAppProvider";
 import { jsPDF } from 'jspdf'; 
 
 // ====================================================================
-//                             0. HELPER COMPONENTS (IMPROVED LOADER)
+//                             0. HELPER COMPONENTS
 // ====================================================================
 
 // --- 0a. Dynamic Bouncing Cube Loader Component ---
 const CubeLoader = ({ text = "Loading data..." }) => (
     <div className="flex flex-col items-center justify-center p-8">
         <div className="relative w-12 h-12">
-            <div className="absolute w-5 h-5 bg-indigo-500 rounded-sm top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-bounce-slow"></div>
-            <div className="absolute w-5 h-5 bg-yellow-500 rounded-sm top-0 left-0 animate-bounce-delay-1"></div>
-            <div className="absolute w-5 h-5 bg-green-500 rounded-sm top-0 right-0 animate-bounce-delay-2"></div>
-            <div className="absolute w-5 h-5 bg-red-500 rounded-sm bottom-0 left-0 animate-bounce-delay-3"></div>
-            <div className="absolute w-5 h-5 bg-blue-500 rounded-sm bottom-0 right-0 animate-bounce-delay-4"></div>
+            <div className="absolute w-5 h-5 bg-indigo-500 rounded-sm top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-bounce-slow shadow-xl"></div>
+            <div className="absolute w-5 h-5 bg-yellow-400 rounded-sm top-0 left-0 animate-bounce-delay-1 shadow-md"></div>
+            <div className="absolute w-5 h-5 bg-green-500 rounded-sm top-0 right-0 animate-bounce-delay-2 shadow-md"></div>
+            <div className="absolute w-5 h-5 bg-red-500 rounded-sm bottom-0 left-0 animate-bounce-delay-3 shadow-md"></div>
+            <div className="absolute w-5 h-5 bg-blue-500 rounded-sm bottom-0 right-0 animate-bounce-delay-4 shadow-md"></div>
         </div>
-        <p className="mt-6 text-lg font-semibold text-indigo-300">{text}</p>
+        <p className="mt-6 text-lg font-semibold text-indigo-300 tracking-wider">{text}</p>
         <style jsx global>{`
+          /* Retained CSS for CubeLoader animation */
           @keyframes bounce-slow {
             0%, 100% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -50%) scale(1.2); }
@@ -69,7 +70,7 @@ const CubeLoader = ({ text = "Loading data..." }) => (
     </div>
 );
 
-
+// --- DetailItem Component ---
 const DetailItem = ({ icon: Icon, label, value, isDocument = false }) => {
     const isLink = isDocument && typeof value === 'string' && (value.startsWith('http') || value.startsWith('/'));
 
@@ -96,7 +97,7 @@ const DetailItem = ({ icon: Icon, label, value, isDocument = false }) => {
     );
 };
 
-// --- Helper component for a SIM Card item (Sidebar View) ---
+// --- SimDetailItem Component ---
 const SimDetailItem = ({ sim, index }) => (
     <div className="bg-gray-700/70 p-4 rounded-lg shadow-inner border border-indigo-700/50">
         <h4 className="text-yellow-400 font-bold mb-2 flex items-center">
@@ -110,9 +111,9 @@ const SimDetailItem = ({ sim, index }) => (
     </div>
 );
 
-// --- The Main Device Details Sidebar ---
+// --- DeviceDetailsModal Component ---
 const DeviceDetailsModal = ({ device, onClose, loading, isOpen }) => {
-    // Data Structure for mapping all your fields (sections) (omitted for brevity, assume it's the same)
+    // ... (Modal structure and content from V5 - unchanged)
     const sections = [
         { 
             title: "Customer & Contact Information", 
@@ -198,15 +199,10 @@ const DeviceDetailsModal = ({ device, onClose, loading, isOpen }) => {
 
     return (
         <div className="fixed inset-0 z-50 overflow-hidden">
-            {/* Backdrop */}
             <div className="absolute inset-0 bg-black bg-opacity-70 transition-opacity" onClick={onClose}></div>
-            
-            {/* Sidebar Panel */}
             <div className="fixed inset-y-0 right-0 max-w-full flex">
                 <div className="w-screen max-w-2xl transform transition-transform duration-500 ease-in-out translate-x-0">
                     <div className="h-full flex flex-col bg-gray-800 shadow-2xl overflow-y-auto">
-                        
-                        {/* Header */}
                         <div className="p-6 border-b border-gray-700/50 flex justify-between items-center sticky top-0 bg-gray-800 z-10 shadow-lg">
                             <h3 className="text-xl font-bold text-yellow-400 flex items-center">
                                 {loading ? 'Fetching Details...' : hasError ? 'Error' : `Detailed Report: ${device.deviceNo || 'N/A'}`}
@@ -216,7 +212,6 @@ const DeviceDetailsModal = ({ device, onClose, loading, isOpen }) => {
                             </button>
                         </div>
 
-                        {/* Content */}
                         {loading ? (
                             <CubeLoader text="Loading device data..." /> 
                         ) : hasError ? (
@@ -226,8 +221,6 @@ const DeviceDetailsModal = ({ device, onClose, loading, isOpen }) => {
                             </div>
                         ) : (
                             <div className="p-6 space-y-6 flex-grow">
-                                
-                                {/* SIM Details Section */}
                                 {device.simDetails && device.simDetails.length > 0 && (
                                     <div className="bg-gray-900/50 p-4 rounded-xl shadow-inner border border-indigo-700/50">
                                         <h3 className="text-lg font-bold text-indigo-400 mb-4 flex items-center">
@@ -241,7 +234,6 @@ const DeviceDetailsModal = ({ device, onClose, loading, isOpen }) => {
                                     </div>
                                 )}
                                 
-                                {/* Dynamic Sections (Main Data) */}
                                 {sections.map((section, index) => (
                                     <div key={index} className="bg-gray-900/50 p-4 rounded-xl shadow-inner border border-gray-700/50">
                                         <h3 className="text-lg font-bold text-yellow-400 mb-4 flex items-center border-b border-gray-700 pb-2">
@@ -269,12 +261,9 @@ const DeviceDetailsModal = ({ device, onClose, loading, isOpen }) => {
     );
 };
 
-// ====================================================================
-//                             1. CERTIFICATE MODAL COMPONENT (UNCHANGED)
-// ====================================================================
-
+// --- CertificateModal Component ---
 const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading }) => {
-    // State management for certificate options... (omitted for brevity)
+    // ... (Modal structure and content from V5 - unchanged)
     const [certificateOptions, setCertificateOptions] = useState({
         copyType: 'Customer Copy', 
         letterHead: 'Leather Head', 
@@ -295,7 +284,6 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
 
     if (!isOpen) return null;
 
-    // Define Dropdown Options
     const copyTypeOptions = ['Customer Copy', 'Dealer Copy', 'Manufacturer Copy'];
     const letterHeadOptions = ['Leather Head', 'Plain Paper'];
     const allowOptions = ['Allow', 'Restrict'];
@@ -304,14 +292,9 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-            {/* Backdrop */}
             <div className="absolute inset-0 bg-black bg-opacity-60 transition-opacity" onClick={onClose}></div>
-
-            {/* Modal */}
             <div className="flex items-center justify-center min-h-screen p-4">
                 <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 relative">
-                    
-                    {/* Header */}
                     <div className="p-6 border-b border-gray-700 flex justify-between items-center">
                         <h3 className="text-xl font-bold text-yellow-400 flex items-center">
                             <FileText size={20} className="mr-2" /> Certificates
@@ -321,9 +304,7 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
                         </button>
                     </div>
 
-                    {/* Content/Form */}
                     <div className="p-6 space-y-4">
-                        
                         <div className="space-y-1">
                             <label htmlFor="copyType" className="block text-sm font-medium text-gray-300">Copy Type</label>
                             <select 
@@ -385,7 +366,6 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
                         </div>
                     </div>
 
-                    {/* Footer/Action */}
                     <div className="p-6 border-t border-gray-700 flex justify-end">
                         <button 
                             onClick={handleDownloadClick} 
@@ -393,7 +373,7 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
                             className={`px-6 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 shadow-lg 
                                 ${isDownloading 
                                     ? 'bg-indigo-700 text-gray-400 cursor-not-allowed' 
-                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/50 focus:ring-4 focus:ring-indigo-500/50'
+                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-500/50'
                                 }`}
                         >
                             {isDownloading ? (
@@ -409,13 +389,9 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
     );
 };
 
-
-// ====================================================================
-//                             2. PDF GENERATION LOGIC (UNCHANGED)
-// ====================================================================
-
+// --- PDF Generation Logic (using jsPDF) ---
 const generateCertificatePDF = (doc, deviceData, options) => {
-    // ... (PDF logic remains the same)
+    // ... (PDF generation logic from V5 - unchanged)
     let y = 15;
     const margin = 15;
     const lineHeight = 8;
@@ -604,7 +580,6 @@ const generateCertificatePDF = (doc, deviceData, options) => {
     doc.text(`Generated on: ${new Date().toLocaleString()}`, margin, y);
     doc.text(`This document is based on the data available in the system at the time of generation.`, doc.internal.pageSize.width - margin, y, { align: 'right' });
     
-    // Save PDF
     doc.save(`${options.certificateType}_Certificate_${deviceData.deviceNo}.pdf`);
 };
 
@@ -616,28 +591,41 @@ function DeviceMapreport() {
     const [mapDevices, setMapDevices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedDeviceIds, setSelectedDeviceIds] = useState([]); 
+    const [searchTerm, setSearchTerm] = useState(''); // NEW: State for search input
     const { token: contextToken } = useContext(UserAppContext);
     const selectAllRef = useRef(null);
 
-    // State for View Sidebar
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [modalDeviceDetails, setModalDeviceDetails] = useState(null);
     const [modalLoading, setModalLoading] = useState(false); 
 
-    // State for Certificate Modal
     const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
     const [isPdfDownloading, setIsPdfDownloading] = useState(false); 
 
     const isSingleDeviceSelected = selectedDeviceIds.length === 1;
 
-    // --- Action Button Component (REFINED STYLING) ---
+    // NEW: Memoized filtering logic
+    const filteredDevices = useMemo(() => {
+        if (!searchTerm) return mapDevices;
+
+        const lowerCaseSearch = searchTerm.toLowerCase();
+
+        return mapDevices.filter(device => 
+            (device.deviceNo && device.deviceNo.toLowerCase().includes(lowerCaseSearch)) ||
+            (device.Rto && device.Rto.toLowerCase().includes(lowerCaseSearch)) ||
+            (device.fullName && device.fullName.toLowerCase().includes(lowerCaseSearch))
+        );
+    }, [mapDevices, searchTerm]);
+    // -------------------------------------------------------------
+
+    // --- Action Button Component (Retained) ---
     const ActionButton = ({ icon: Icon, label, onClick, className = '' }) => {
         const isDisabled = !isSingleDeviceSelected;
         const tooltip = 'Select exactly one device to perform this action.';
 
-        const baseClasses = "px-4 py-2 rounded-md font-semibold text-sm transition-all duration-300 flex items-center gap-2 shadow-lg";
+        const baseClasses = "px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 flex items-center gap-2 shadow-lg";
         
-        const defaultEnabledClasses = "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-500/50";
+        const defaultEnabledClasses = "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/50 focus:ring-4 focus:ring-indigo-500/50";
         
         const disabledClasses = "bg-gray-700 text-gray-500 cursor-not-allowed shadow-inner";
 
@@ -655,7 +643,7 @@ function DeviceMapreport() {
     };
     // -------------------------------------------------------------------------
 
-    // --- API Fetch Function for Single Device View (Shared for PDF/View) ---
+    // --- API Fetch Functions (Retained) ---
     const fetchDeviceDetails = async (deviceId, setDetailsState, setLoadingState) => {
         const selectedDevice = mapDevices.find(device => device._id === deviceId);
         if (!selectedDevice || !selectedDevice.deviceNo) {
@@ -703,10 +691,7 @@ function DeviceMapreport() {
         setIsViewModalOpen(true);
         fetchDeviceDetails(selectedDeviceIds[0], setModalDeviceDetails, setModalLoading);
     };
-    // -----------------------------------------------------------------
-
-
-    // --- Certificate Download Handler ---
+    
     const handleOpenCertificateModal = () => {
         if (!isSingleDeviceSelected) return;
         setIsCertificateModalOpen(true);
@@ -724,6 +709,7 @@ function DeviceMapreport() {
                 throw new Error("Device not found in the list.");
             }
 
+            // Fetches complete data needed for PDF
             deviceData = await fetchDeviceDetails(selectedDevice._id, null, () => {}); 
 
             if (!deviceData) {
@@ -750,7 +736,7 @@ function DeviceMapreport() {
     // -----------------------------------------------------------------
 
 
-    // --- Initial Fetch of All Devices ---
+    // --- Initial Fetch & Checkbox Handlers (Retained) ---
     useEffect(() => {
         const fetchMapDevices = async () => {
           setLoading(true);
@@ -788,10 +774,10 @@ function DeviceMapreport() {
         fetchMapDevices();
       }, [contextToken]);
     
-    // --- Checkbox Handlers ---
     const handleSelectAll = (event) => {
         if (event.target.checked) {
-          const allIds = mapDevices.map(device => device._id);
+          // Selects only the currently filtered devices
+          const allIds = filteredDevices.map(device => device._id);
           setSelectedDeviceIds(allIds);
         } else {
           setSelectedDeviceIds([]);
@@ -806,7 +792,7 @@ function DeviceMapreport() {
         }
     };
 
-    const isAllSelected = mapDevices.length > 0 && selectedDeviceIds.length === mapDevices.length;
+    const isAllSelected = filteredDevices.length > 0 && selectedDeviceIds.length === filteredDevices.length;
     const isIndeterminate = selectedDeviceIds.length > 0 && !isAllSelected;
 
     useEffect(() => {
@@ -847,56 +833,68 @@ function DeviceMapreport() {
                 </div>
             )}
 
+            {/* HEADER/DASHBOARD CONTROLS */}
             <header className="mb-8 p-6 bg-gray-800 rounded-xl shadow-2xl border-b-4 border-indigo-700/50">
                 <h2 className="text-3xl font-extrabold text-indigo-400 tracking-tight flex items-center gap-2">
                     <Zap className="h-7 w-7 text-yellow-400" /> Mapped Devices Dashboard
                 </h2>
                 
-                {/* Search & Filter Area */}
+                {/* Search & Filter Area (Updated) */}
                 <div className="mt-4 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="relative w-full md:w-1/3">
                         <input
                             type="text"
                             placeholder="Search by Device No, RTO, or Customer Name..."
-                            className="w-full py-2 pl-10 pr-4 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setSelectedDeviceIds([]); // Clear selection on new search
+                            }}
+                            className="w-full py-2 pl-10 pr-4 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-md"
                         />
                         <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     </div>
+                    {/* Display filtered results count */}
+                    <p className="text-sm text-gray-400 font-medium">
+                        Showing {filteredDevices.length} of {mapDevices.length} devices.
+                    </p>
                 </div>
 
-                {/* ACTION BUTTONS ROW (Improved Layout) */}
-                <div className="mt-6 flex flex-wrap gap-3 p-4 bg-gray-700/50 rounded-lg border border-gray-600 shadow-inner">
+                {/* ACTION BUTTONS ROW (More prominent background) */}
+                <div className="mt-6 flex flex-wrap gap-3 p-4 bg-gray-900 rounded-lg border border-indigo-600/30 shadow-inner">
                     <ActionButton icon={Eye} label="View Details" onClick={handleViewDetails} />
                     
                     <ActionButton 
                         icon={Edit} 
                         label="Edit Device" 
                         onClick={() => alert('Edit action for ' + selectedDeviceIds[0])} 
-                        className="bg-yellow-600 text-gray-900 hover:bg-yellow-700 focus:ring-4 focus:ring-yellow-500/50"
+                        className="bg-yellow-600 text-gray-900 hover:bg-yellow-700 hover:shadow-yellow-500/50 focus:ring-4 focus:ring-yellow-500/50"
                     />
                     <ActionButton 
                         icon={FileText} 
                         label="Certificates (PDF)" 
                         onClick={handleOpenCertificateModal} 
-                        className="bg-green-600 text-white hover:bg-green-700 focus:ring-4 focus:ring-green-500/50"
+                        className="bg-green-600 text-white hover:bg-green-700 hover:shadow-green-500/50 focus:ring-4 focus:ring-green-500/50"
                     />
                     <ActionButton 
                         icon={Trash2} 
                         label="Delete" 
                         onClick={() => alert('Delete action for ' + selectedDeviceIds[0])} 
-                        className="bg-red-600 text-white hover:bg-red-700 focus:ring-4 focus:ring-red-500/50"
+                        className="bg-red-600 text-white hover:bg-red-700 hover:shadow-red-500/50 focus:ring-4 focus:ring-red-500/50"
                     />
                 </div>
             </header>
 
-            {/* TABLE CONTAINER */}
-            <div className="bg-gray-800 rounded-xl shadow-2xl overflow-hidden ring-1 ring-indigo-500/30">
+            {/* TABLE CONTAINER (Elegant Elevation) */}
+            <div className="bg-gray-800 rounded-xl shadow-2xl overflow-hidden ring-2 ring-indigo-600/50">
                 <div className="max-h-[70vh] overflow-y-auto overflow-x-auto">
                     <table className="min-w-full text-sm divide-y divide-gray-700">
-                        {/* REFINED TABLE HEADER */}
-                        <thead className="sticky top-0 bg-gray-900/95 backdrop-blur-sm z-10 border-b-2 border-indigo-500 shadow-md">
+                        
+                        {/* REFINED TABLE HEADER - Sticky, elevated, and bold */}
+                        <thead className="sticky top-0 bg-gray-900/95 backdrop-blur-sm z-20 border-b-4 border-yellow-400 shadow-xl">
                             <tr>
-                                <th className="px-4 py-3 text-left min-w-[50px]">
+                                {/* Sticky Checkbox Column */}
+                                <th className="p-4 text-left min-w-[50px] sticky left-0 bg-gray-900/95">
                                     <input 
                                         type="checkbox" 
                                         className="h-4 w-4 text-indigo-500 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 cursor-pointer checked:bg-indigo-500 checked:border-indigo-500" 
@@ -905,7 +903,9 @@ function DeviceMapreport() {
                                         onChange={handleSelectAll} 
                                     />
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[150px]">Action</th>
+                                {/* Sticky Action Column */}
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[80px] sticky left-[50px] bg-gray-900/95 border-l border-gray-700">Action</th>
+                                
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[150px]">Device No.</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[160px]">Sim Details</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[120px]">State/District</th>
@@ -917,14 +917,20 @@ function DeviceMapreport() {
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[200px]">Email</th>
                             </tr>
                         </thead>
-                        {/* END REFINED TABLE HEADER */}
                         <tbody className="divide-y divide-gray-700/50">
-                            {mapDevices.map((device) => (
+                            {filteredDevices.map((device, index) => (
                                 <tr 
                                     key={device._id} 
-                                    className={`hover:bg-gray-700/50 transition duration-150 ${selectedDeviceIds.includes(device._id) ? 'bg-indigo-900/40 border-l-4 border-indigo-500' : ''}`}
+                                    // Striped rows for better readability
+                                    className={`
+                                        transition duration-150 
+                                        ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700/60'} 
+                                        hover:bg-gray-700 
+                                        ${selectedDeviceIds.includes(device._id) ? 'bg-indigo-900/40 border-l-4 border-indigo-500' : ''}
+                                    `}
                                 >
-                                    <td className="px-4 py-4 whitespace-nowrap">
+                                    {/* Sticky Checkbox Cell */}
+                                    <td className="p-4 whitespace-nowrap sticky left-0 z-10 bg-inherit">
                                         <input 
                                             type="checkbox" 
                                             className="h-4 w-4 text-indigo-500 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 cursor-pointer checked:bg-indigo-500 checked:border-indigo-500"
@@ -932,21 +938,28 @@ function DeviceMapreport() {
                                             onChange={(e) => handleSelectOne(e, device._id)}
                                         />
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    {/* Sticky Action Cell (Icon-only until hover) */}
+                                    <td className="px-6 py-4 whitespace-nowrap sticky left-[50px] z-10 bg-inherit border-l border-gray-700/50">
                                         <button 
                                             onClick={() => {
                                                 setSelectedDeviceIds([device._id]); 
                                                 handleViewDetails();
                                             }}
-                                            className="inline-flex items-center text-indigo-400 hover:text-indigo-300 font-semibold text-xs border border-indigo-600 px-3 py-1 rounded-full transition"
+                                            className="inline-flex items-center text-indigo-400 hover:text-white hover:bg-indigo-600 p-2 rounded-lg transition duration-200 group relative"
+                                            title="View Details"
                                         >
-                                            <Info size={14} className="mr-1" /> View
+                                            <Eye size={18} />
+                                            {/* Tooltip-like effect on hover for clarity on small columns */}
+                                            <span className="absolute left-full ml-2 w-max px-2 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                                View Details
+                                            </span>
                                         </button>
                                     </td>
+                                    
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-100 font-medium">{device.deviceNo || 'N/A'}</td>
                                     
-                                    {/* SIM DETAILS COLUMN */}
-                                    <td className="px-6 py-2 text-gray-300 text-xs">
+                                    {/* SIM DETAILS COLUMN - Compact and readable */}
+                                    <td className="px-6 py-3 text-gray-300 text-xs">
                                         {device.simDetails && device.simDetails.length > 0 ? (
                                             device.simDetails.map((sim, index) => (
                                                 <div key={index} className="flex flex-col mb-1 p-1 rounded-sm bg-gray-700/30 last:mb-0">
@@ -955,34 +968,41 @@ function DeviceMapreport() {
                                                 </div>
                                             ))
                                         ) : (
-                                            'N/A'
+                                            <span className="text-gray-400 text-sm">N/A</span>
                                         )}
                                     </td>
-                                    {/* ------------------- */}
 
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">
                                         {`${device.Customerstate || 'N/A'} / ${device.Customerdistrict || 'N/A'}`}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.VehicleType || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.VehicleType || 'N/A'}</td>
                                     
-                                    {/* RTO Data Cell */}
-                                    <td className="px-6 py-4 whitespace-nowrap text-yellow-400 font-semibold">
+                                    {/* RTO Data Cell - Highlighted */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-yellow-400 font-semibold text-sm">
                                         {device.Rto || 'N/A'}
                                     </td>
-                                    {/* ---------------------- */}
-
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-200">{device.delerName || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-100">{device.fullName || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.mobileNo || 'N/A'}</td>
-                                    <td className="px-6 py-4 text-gray-300 truncate max-w-[200px]">{device.email || 'N/A'}</td>
+                                    
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-200 text-sm">{device.delerName || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-100 text-sm font-medium">{device.fullName || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.mobileNo || 'N/A'}</td>
+                                    <td className="px-6 py-4 text-gray-300 truncate max-w-[200px] text-sm">{device.email || 'N/A'}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
+
+                    {filteredDevices.length === 0 && mapDevices.length > 0 && (
+                        <div className="p-10 text-center bg-gray-800">
+                            <Search className="mx-auto h-12 w-12 text-gray-500" />
+                            <h3 className="mt-2 text-lg font-semibold text-gray-300">No matching devices found</h3>
+                            <p className="mt-1 text-gray-500">Try adjusting your search terms.</p>
+                        </div>
+                    )}
+
                 </div>
             </div>
 
-            {/* View Details Sidebar Modal */}
+            {/* Modals */}
             <DeviceDetailsModal 
                 device={modalDeviceDetails} 
                 onClose={() => setIsViewModalOpen(false)} 
@@ -990,7 +1010,6 @@ function DeviceMapreport() {
                 isOpen={isViewModalOpen}
             />
 
-            {/* Certificate Selection Modal */}
             <CertificateModal
                 isOpen={isCertificateModalOpen}
                 onClose={() => setIsCertificateModalOpen(false)}

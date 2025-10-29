@@ -347,10 +347,7 @@ function DeviceMappingDashboard() {
       data.append('simDetails', JSON.stringify([]));
     }
 
-    if (selectedPackageDetails) {
-      data.append('fullPackageDetails', JSON.stringify(selectedPackageDetails));
-    }
-
+    
     console.log("--- FormData Keys Being Sent to API ---");
     for (const pair of data.entries()) {
       const value = pair[1];
@@ -513,281 +510,281 @@ function DeviceMappingDashboard() {
 
   return (
     <div>
-      <ManufactureNavbar/>
-    
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      <ManufactureNavbar />
 
-      {/* Navbar */}
-      <nav className="bg-black/90 backdrop-blur-md border-b-2 border-yellow-500 sticky top-0  shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center">
-              <MapPin className="text-yellow-400" size={32} />
-              <span className="ml-3 text-2xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">
-                WEMIS Device Mapping
-              </span>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
 
-            <div className="hidden md:block">
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-6 py-3 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300 shadow-lg hover:shadow-yellow-500/50 flex items-center gap-2"
-              >
-                <MapPin size={20} />
-                Map New Device
-              </button>
-            </div>
+        {/* Navbar */}
+        <nav className="bg-black/90 backdrop-blur-md border-b-2 border-yellow-500 sticky top-0  shadow-2xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-20">
+              <div className="flex items-center">
+                <MapPin className="text-yellow-400" size={32} />
+                <span className="ml-3 text-2xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">
+                  WEMIS Device Mapping
+                </span>
+              </div>
 
-            <div className="md:hidden">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-yellow-400 hover:text-yellow-300"
-              >
-                <Menu size={28} />
-              </button>
+              <div className="hidden md:block">
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-6 py-3 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300 shadow-lg hover:shadow-yellow-500/50 flex items-center gap-2"
+                >
+                  <MapPin size={20} />
+                  Map New Device
+                </button>
+              </div>
+
+              <div className="md:hidden">
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="text-yellow-400 hover:text-yellow-300"
+                >
+                  <Menu size={28} />
+                </button>
+              </div>
             </div>
           </div>
+
+          {mobileMenuOpen && (
+            <div className="md:hidden bg-black/95 border-t border-yellow-500/30">
+              <div className="px-4 py-4">
+                <button
+                  onClick={() => {
+                    setIsModalOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-4 py-3 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <MapPin size={20} />
+                  Map New Device
+                </button>
+              </div>
+            </div>
+          )}
+        </nav>
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
+
+          <DeviceMapreport />
         </div>
 
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-black/95 border-t border-yellow-500/30">
-            <div className="px-4 py-4">
-              <button
-                onClick={() => {
-                  setIsModalOpen(true);
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-4 py-3 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <MapPin size={20} />
-                Map New Device
-              </button>
+        {/* Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-yellow-500 rounded-2xl shadow-2xl max-w-6xl w-full my-8 max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-black/95 backdrop-blur-md border-b-2 border-yellow-500 p-6 flex justify-between items-center z-10">
+                <h2 className="text-3xl font-bold text-yellow-400 flex items-center gap-3">
+                  <MapPin size={32} />
+                  Map New Device
+                </h2>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-yellow-400 hover:text-yellow-300 transition-colors"
+                >
+                  <X size={32} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                {(loading || packagesLoading) && (
+                  <div className="text-center py-3 text-yellow-400 font-semibold bg-yellow-500/10 rounded-lg mb-4 border border-yellow-500/30">
+                    Processing... Please wait.
+                  </div>
+                )}
+                {submitStatus === 'success' && (
+                  <div className="bg-green-500/20 border-2 border-green-500 text-green-400 px-4 py-3 rounded-lg mb-4">
+                    <strong className="font-bold">Success!</strong>
+                    <span className="block sm:inline"> Form submitted successfully!</span>
+                  </div>
+                )}
+                {submitStatus === 'error' && (
+                  <div className="bg-red-500/20 border-2 border-red-500 text-red-400 px-4 py-3 rounded-lg mb-4">
+                    <strong className="font-bold">Error!</strong>
+                    <span className="block sm:inline"> Submission failed. Check console for details.</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Location Dropdowns */}
+                  <div>
+                    <label className="block mb-2 font-medium text-yellow-300">Country</label>
+                    <select name="country" value={formData.country} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
+                      <option value="">Select Country</option>
+                      {COUNTRIES.map(c => (<option key={c.code} value={c.name}>{c.name}</option>))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 font-medium text-yellow-300">State</label>
+                    {formData.country === 'India' ? (
+                      <select name="state" value={formData.state} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
+                        <option value="">Select State</option>
+                        {INDIA_STATES.map(state => (<option key={state} value={state}>{state}</option>))}
+                      </select>
+                    ) : (
+                      <input type="text" name="state" value={formData.state} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500" placeholder="Enter State/Province" />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 font-medium text-yellow-300">Distributor Name</label>
+                    <select name="distributorName" value={formData.distributorName} onChange={handleChange} disabled={!formData.state || loading} className={`w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${!formData.state || loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <option value="">
+                        {loading ? 'Loading Distributors...' : formData.state && distributors.length > 0 ? 'Select Distributor' : formData.state ? 'No Distributors Found' : 'Select State First'}
+                      </option>
+                      {distributors.map(dist => (<option key={dist._id} value={dist._id}>{dist.contact_Person_Name}</option>))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 font-medium text-yellow-300">Dealer Name</label>
+                    <select name="delerName" value={formData.delerName} onChange={handleChange} disabled={!formData.distributorName || loading} className={`w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${!formData.distributorName || loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <option value="">
+                        {loading ? 'Loading Dealers...' : formData.distributorName && dealers.length > 0 ? 'Select Dealer' : formData.distributorName ? 'No Dealers Found' : 'Select Distributor First'}
+                      </option>
+                      {dealers.map(dealer => (<option key={dealer._id || dealer.mobile} value={dealer.name || dealer.business_Name}>{dealer.name || dealer.business_Name || 'Unknown Dealer'}</option>))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 font-medium text-yellow-300">Device No (Serial No)</label>
+                    <select name="deviceNo" value={formData.deviceNo} onChange={handleChange} disabled={!formData.delerName || loading} className={`w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${!formData.delerName || loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <option value="">
+                        {loading ? 'Loading Device Nos...' : formData.delerName && deviceNumbers.length > 0 ? 'Select Device Number' : formData.delerName ? 'No Devices Found' : 'Select Dealer First'}
+                      </option>
+                      {deviceNumbers.map(device => (<option key={device.deviceSerialNo} value={device.deviceSerialNo}>{device.deviceSerialNo}</option>))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 font-medium text-yellow-300">Packages</label>
+                    <select name="Packages" value={formData.Packages} onChange={handleChange} disabled={packagesLoading} className={`w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${packagesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <option value="">
+                        {packagesLoading ? 'Loading Packages...' : packages.length > 0 ? 'Select Package' : 'No Packages Found'}
+                      </option>
+                      {packages.map(pkg => (<option key={pkg._id} value={pkg._id}>{pkg.packageName || pkg._id}</option>))}
+                    </select>
+                  </div>
+
+                  {renderPackageDetailsBox()}
+
+                  <div className="md:col-span-3 border-b-2 border-yellow-500/20 pb-2 mb-4 mt-6">
+                    <h3 className="text-2xl font-semibold text-yellow-400 flex items-center gap-2">
+                      <Smartphone size={24} />
+                      SIM Card Details (Auto-Populated)
+                    </h3>
+                  </div>
+
+                  <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    {renderSimInputs()}
+                  </div>
+
+                  <div className="md:col-span-3 border-b-2 border-yellow-500/20 pb-2 mt-6">
+                    <h3 className="text-2xl font-semibold text-yellow-400 flex items-center gap-2">
+                      <FileText size={24} />
+                      Device, Vehicle & Customer Info
+                    </h3>
+                  </div>
+
+                  {['deviceType', 'voltage', 'elementType', 'batchNo'].map((field) => (
+                    <div key={field}>
+                      <label className="block mb-2 font-medium text-yellow-300">{getLabel(field)}</label>
+                      <input
+                        type={field.toLowerCase().includes('number') ? 'number' : 'text'}
+                        name={field}
+                        value={formData[field]}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder-yellow-600/50"
+                      />
+                    </div>
+                  ))}
+
+                  <div>
+                    <label className="block mb-2 font-medium text-yellow-300">Customer Country</label>
+                    <select name="Customercountry" value={formData.Customercountry} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
+                      <option value="">Select Country</option>
+                      {COUNTRIES.map(c => (<option key={`cust-${c.code}`} value={c.name}>{c.name}</option>))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 font-medium text-yellow-300">Customer State</label>
+                    {formData.Customercountry === 'India' ? (
+                      <select name="Customerstate" value={formData.Customerstate} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
+                        <option value="">Select State</option>
+                        {INDIA_STATES.map(state => (<option key={`cust-${state}`} value={state}>{state}</option>))}
+                      </select>
+                    ) : (
+                      <input type="text" name="Customerstate" value={formData.Customerstate} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder-yellow-600/50" placeholder="Enter State/Province" />
+                    )}
+                  </div>
+
+                  {textNumberInputs.filter(f => !['deviceType', 'voltage', 'elementType', 'batchNo'].includes(f)).map((field) => (
+                    <div key={field}>
+                      <label className="block mb-2 font-medium text-yellow-300">{getLabel(field)}</label>
+                      <input
+                        type={field.toLowerCase().includes('email') ? 'email' :
+                          field.toLowerCase().includes('date') || field.toLowerCase().includes('mapped') ? 'date' :
+                            field.toLowerCase().includes('no') || field.toLowerCase().includes('reading') || field.toLowerCase().includes('adhar') || field.toLowerCase().includes('pan') || field.toLowerCase().includes('mobile') || field.toLowerCase().includes('pin') ? 'number' :
+                              'text'}
+                        name={field}
+                        value={formData[field]}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder-yellow-600/50"
+                      />
+                    </div>
+                  ))}
+
+                  <div className="md:col-span-3 border-t-2 border-yellow-500/20 pt-6 mt-6">
+                    <h3 className="text-2xl font-semibold mb-6 text-yellow-400 flex items-center gap-2">
+                      <FileText size={24} />
+                      Document Uploads
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                      {fileInputs.map((file) => (
+                        <div key={file.key}>
+                          <label className="block mb-2 font-medium text-yellow-300">{file.label}</label>
+                          <input
+                            type="file"
+                            name={file.key}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-500 file:text-black hover:file:bg-yellow-400 file:cursor-pointer"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-3 mt-8">
+                    <button
+                      type="submit"
+                      disabled={loading || packagesLoading}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-6 py-4 rounded-xl font-bold text-lg hover:from-yellow-400 hover:to-yellow-500 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-yellow-500/50 flex items-center justify-center gap-3"
+                    >
+                      {loading || packagesLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <FileText size={24} />
+                          Submit All Data
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         )}
-      </nav>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        
-
-        <DeviceMapreport/>
       </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-yellow-500 rounded-2xl shadow-2xl max-w-6xl w-full my-8 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-black/95 backdrop-blur-md border-b-2 border-yellow-500 p-6 flex justify-between items-center z-10">
-              <h2 className="text-3xl font-bold text-yellow-400 flex items-center gap-3">
-                <MapPin size={32} />
-                Map New Device
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-yellow-400 hover:text-yellow-300 transition-colors"
-              >
-                <X size={32} />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6">
-              {(loading || packagesLoading) && (
-                <div className="text-center py-3 text-yellow-400 font-semibold bg-yellow-500/10 rounded-lg mb-4 border border-yellow-500/30">
-                  Processing... Please wait.
-                </div>
-              )}
-              {submitStatus === 'success' && (
-                <div className="bg-green-500/20 border-2 border-green-500 text-green-400 px-4 py-3 rounded-lg mb-4">
-                  <strong className="font-bold">Success!</strong>
-                  <span className="block sm:inline"> Form submitted successfully!</span>
-                </div>
-              )}
-              {submitStatus === 'error' && (
-                <div className="bg-red-500/20 border-2 border-red-500 text-red-400 px-4 py-3 rounded-lg mb-4">
-                  <strong className="font-bold">Error!</strong>
-                  <span className="block sm:inline"> Submission failed. Check console for details.</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Location Dropdowns */}
-                <div>
-                  <label className="block mb-2 font-medium text-yellow-300">Country</label>
-                  <select name="country" value={formData.country} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
-                    <option value="">Select Country</option>
-                    {COUNTRIES.map(c => (<option key={c.code} value={c.name}>{c.name}</option>))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-2 font-medium text-yellow-300">State</label>
-                  {formData.country === 'India' ? (
-                    <select name="state" value={formData.state} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
-                      <option value="">Select State</option>
-                      {INDIA_STATES.map(state => (<option key={state} value={state}>{state}</option>))}
-                    </select>
-                  ) : (
-                    <input type="text" name="state" value={formData.state} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500" placeholder="Enter State/Province" />
-                  )}
-                </div>
-
-                <div>
-                  <label className="block mb-2 font-medium text-yellow-300">Distributor Name</label>
-                  <select name="distributorName" value={formData.distributorName} onChange={handleChange} disabled={!formData.state || loading} className={`w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${!formData.state || loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <option value="">
-                      {loading ? 'Loading Distributors...' : formData.state && distributors.length > 0 ? 'Select Distributor' : formData.state ? 'No Distributors Found' : 'Select State First'}
-                    </option>
-                    {distributors.map(dist => (<option key={dist._id} value={dist._id}>{dist.contact_Person_Name}</option>))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-2 font-medium text-yellow-300">Dealer Name</label>
-                  <select name="delerName" value={formData.delerName} onChange={handleChange} disabled={!formData.distributorName || loading} className={`w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${!formData.distributorName || loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <option value="">
-                      {loading ? 'Loading Dealers...' : formData.distributorName && dealers.length > 0 ? 'Select Dealer' : formData.distributorName ? 'No Dealers Found' : 'Select Distributor First'}
-                    </option>
-                    {dealers.map(dealer => (<option key={dealer._id || dealer.mobile} value={dealer.name || dealer.business_Name}>{dealer.name || dealer.business_Name || 'Unknown Dealer'}</option>))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-2 font-medium text-yellow-300">Device No (Serial No)</label>
-                  <select name="deviceNo" value={formData.deviceNo} onChange={handleChange} disabled={!formData.delerName || loading} className={`w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${!formData.delerName || loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <option value="">
-                      {loading ? 'Loading Device Nos...' : formData.delerName && deviceNumbers.length > 0 ? 'Select Device Number' : formData.delerName ? 'No Devices Found' : 'Select Dealer First'}
-                    </option>
-                    {deviceNumbers.map(device => (<option key={device.deviceSerialNo} value={device.deviceSerialNo}>{device.deviceSerialNo}</option>))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-2 font-medium text-yellow-300">Packages</label>
-                  <select name="Packages" value={formData.Packages} onChange={handleChange} disabled={packagesLoading} className={`w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${packagesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <option value="">
-                      {packagesLoading ? 'Loading Packages...' : packages.length > 0 ? 'Select Package' : 'No Packages Found'}
-                    </option>
-                    {packages.map(pkg => (<option key={pkg._id} value={pkg._id}>{pkg.packageName || pkg._id}</option>))}
-                  </select>
-                </div>
-
-                {renderPackageDetailsBox()}
-
-                <div className="md:col-span-3 border-b-2 border-yellow-500/20 pb-2 mb-4 mt-6">
-                  <h3 className="text-2xl font-semibold text-yellow-400 flex items-center gap-2">
-                    <Smartphone size={24} />
-                    SIM Card Details (Auto-Populated)
-                  </h3>
-                </div>
-
-                <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {renderSimInputs()}
-                </div>
-
-                <div className="md:col-span-3 border-b-2 border-yellow-500/20 pb-2 mt-6">
-                  <h3 className="text-2xl font-semibold text-yellow-400 flex items-center gap-2">
-                    <FileText size={24} />
-                    Device, Vehicle & Customer Info
-                  </h3>
-                </div>
-
-                {['deviceType', 'voltage', 'elementType', 'batchNo'].map((field) => (
-                  <div key={field}>
-                    <label className="block mb-2 font-medium text-yellow-300">{getLabel(field)}</label>
-                    <input
-                      type={field.toLowerCase().includes('number') ? 'number' : 'text'}
-                      name={field}
-                      value={formData[field]}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder-yellow-600/50"
-                    />
-                  </div>
-                ))}
-
-                <div>
-                  <label className="block mb-2 font-medium text-yellow-300">Customer Country</label>
-                  <select name="Customercountry" value={formData.Customercountry} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
-                    <option value="">Select Country</option>
-                    {COUNTRIES.map(c => (<option key={`cust-${c.code}`} value={c.name}>{c.name}</option>))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-2 font-medium text-yellow-300">Customer State</label>
-                  {formData.Customercountry === 'India' ? (
-                    <select name="Customerstate" value={formData.Customerstate} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
-                      <option value="">Select State</option>
-                      {INDIA_STATES.map(state => (<option key={`cust-${state}`} value={state}>{state}</option>))}
-                    </select>
-                  ) : (
-                    <input type="text" name="Customerstate" value={formData.Customerstate} onChange={handleChange} className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder-yellow-600/50" placeholder="Enter State/Province" />
-                  )}
-                </div>
-
-                {textNumberInputs.filter(f => !['deviceType', 'voltage', 'elementType', 'batchNo'].includes(f)).map((field) => (
-                  <div key={field}>
-                    <label className="block mb-2 font-medium text-yellow-300">{getLabel(field)}</label>
-                    <input
-                      type={field.toLowerCase().includes('email') ? 'email' :
-                        field.toLowerCase().includes('date') || field.toLowerCase().includes('mapped') ? 'date' :
-                          field.toLowerCase().includes('no') || field.toLowerCase().includes('reading') || field.toLowerCase().includes('adhar') || field.toLowerCase().includes('pan') || field.toLowerCase().includes('mobile') || field.toLowerCase().includes('pin') ? 'number' :
-                            'text'}
-                      name={field}
-                      value={formData[field]}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder-yellow-600/50"
-                    />
-                  </div>
-                ))}
-
-                <div className="md:col-span-3 border-t-2 border-yellow-500/20 pt-6 mt-6">
-                  <h3 className="text-2xl font-semibold mb-6 text-yellow-400 flex items-center gap-2">
-                    <FileText size={24} />
-                    Document Uploads
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-                    {fileInputs.map((file) => (
-                      <div key={file.key}>
-                        <label className="block mb-2 font-medium text-yellow-300">{file.label}</label>
-                        <input
-                          type="file"
-                          name={file.key}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 border-2 border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-500 file:text-black hover:file:bg-yellow-400 file:cursor-pointer"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="md:col-span-3 mt-8">
-                  <button
-                    type="submit"
-                    disabled={loading || packagesLoading}
-                    className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-6 py-4 rounded-xl font-bold text-lg hover:from-yellow-400 hover:to-yellow-500 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-yellow-500/50 flex items-center justify-center gap-3"
-                  >
-                    {loading || packagesLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <FileText size={24} />
-                        Submit All Data
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
     </div>
   );
 }
