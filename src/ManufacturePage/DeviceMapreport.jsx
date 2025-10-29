@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
 import axios from "axios";
 import { 
-    Zap, AlertTriangle, Edit, Eye, FileText, Folder, HardDrive, MapPin, Loader2, Info, X, 
-    Truck, Key, Phone, Mail, DollarSign, Calendar, UploadCloud, Link, Download 
+    Zap, AlertTriangle, Edit, Eye, FileText, MapPin, Loader2, Info, X, 
+    Truck, Key, Phone, Mail, DollarSign, Calendar, UploadCloud, Link, Download, Search, Trash2 
 } from "lucide-react"; 
+
 // Assuming the path to your UserAppContext is correct
 import { UserAppContext } from "../contexts/UserAppProvider"; 
 
@@ -11,18 +12,60 @@ import { UserAppContext } from "../contexts/UserAppProvider";
 import { jsPDF } from 'jspdf'; 
 
 // ====================================================================
-//                             0. HELPER COMPONENTS
+//                             0. HELPER COMPONENTS (IMPROVED LOADER)
 // ====================================================================
 
-// --- New Pulsing Dot Loader Component ---
-const PulsingDotLoader = ({ text = "Loading data..." }) => (
+// --- 0a. Dynamic Bouncing Cube Loader Component ---
+const CubeLoader = ({ text = "Loading data..." }) => (
     <div className="flex flex-col items-center justify-center p-8">
-        <div className="flex space-x-2 justify-center items-center">
-            <div className="h-4 w-4 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-            <div className="h-4 w-4 bg-indigo-500 bg-opacity-70 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-            <div className="h-4 w-4 bg-indigo-500 bg-opacity-50 rounded-full animate-bounce"></div>
+        <div className="relative w-12 h-12">
+            <div className="absolute w-5 h-5 bg-indigo-500 rounded-sm top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-bounce-slow"></div>
+            <div className="absolute w-5 h-5 bg-yellow-500 rounded-sm top-0 left-0 animate-bounce-delay-1"></div>
+            <div className="absolute w-5 h-5 bg-green-500 rounded-sm top-0 right-0 animate-bounce-delay-2"></div>
+            <div className="absolute w-5 h-5 bg-red-500 rounded-sm bottom-0 left-0 animate-bounce-delay-3"></div>
+            <div className="absolute w-5 h-5 bg-blue-500 rounded-sm bottom-0 right-0 animate-bounce-delay-4"></div>
         </div>
-        <p className="mt-4 text-lg font-medium text-gray-300">{text}</p>
+        <p className="mt-6 text-lg font-semibold text-indigo-300">{text}</p>
+        <style jsx global>{`
+          @keyframes bounce-slow {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+          }
+          @keyframes bounce-delay-1 {
+            0%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-10px); }
+          }
+          @keyframes bounce-delay-2 {
+            0%, 100% { transform: translateY(0); }
+            35% { transform: translateY(-10px); }
+          }
+          @keyframes bounce-delay-3 {
+            0%, 100% { transform: translateY(0); }
+            65% { transform: translateY(10px); }
+          }
+          @keyframes bounce-delay-4 {
+            0%, 100% { transform: translateY(0); }
+            75% { transform: translateY(10px); }
+          }
+          .animate-bounce-slow {
+            animation: bounce-slow 2s infinite ease-in-out;
+          }
+          .animate-bounce-delay-1 {
+            animation: bounce-delay-1 1.5s infinite ease-in-out;
+          }
+          .animate-bounce-delay-2 {
+            animation: bounce-delay-2 1.5s infinite ease-in-out;
+            animation-delay: 0.1s;
+          }
+          .animate-bounce-delay-3 {
+            animation: bounce-delay-3 1.5s infinite ease-in-out;
+            animation-delay: 0.2s;
+          }
+          .animate-bounce-delay-4 {
+            animation: bounce-delay-4 1.5s infinite ease-in-out;
+            animation-delay: 0.3s;
+          }
+        `}</style>
     </div>
 );
 
@@ -55,7 +98,7 @@ const DetailItem = ({ icon: Icon, label, value, isDocument = false }) => {
 
 // --- Helper component for a SIM Card item (Sidebar View) ---
 const SimDetailItem = ({ sim, index }) => (
-    <div className="bg-gray-700/70 p-4 rounded-lg shadow-xl border border-gray-600/50">
+    <div className="bg-gray-700/70 p-4 rounded-lg shadow-inner border border-indigo-700/50">
         <h4 className="text-yellow-400 font-bold mb-2 flex items-center">
             <Phone size={16} className="mr-2 text-indigo-400" /> SIM Slot {index + 1}
         </h4>
@@ -67,9 +110,9 @@ const SimDetailItem = ({ sim, index }) => (
     </div>
 );
 
-// --- The Main Device Details Sidebar (Unchanged from your previous code) ---
-const DeviceDetailsModal = ({ device, onClose, loading }) => {
-    // Data Structure for mapping all your fields (sections)
+// --- The Main Device Details Sidebar ---
+const DeviceDetailsModal = ({ device, onClose, loading, isOpen }) => {
+    // Data Structure for mapping all your fields (sections) (omitted for brevity, assume it's the same)
     const sections = [
         { 
             title: "Customer & Contact Information", 
@@ -150,13 +193,13 @@ const DeviceDetailsModal = ({ device, onClose, loading }) => {
         }
     ];
 
-    if (!device && !loading) return null;
+    if (!isOpen) return null;
     const hasError = device && device.error;
 
     return (
         <div className="fixed inset-0 z-50 overflow-hidden">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black bg-opacity-60 transition-opacity" onClick={onClose}></div>
+            <div className="absolute inset-0 bg-black bg-opacity-70 transition-opacity" onClick={onClose}></div>
             
             {/* Sidebar Panel */}
             <div className="fixed inset-y-0 right-0 max-w-full flex">
@@ -175,7 +218,7 @@ const DeviceDetailsModal = ({ device, onClose, loading }) => {
 
                         {/* Content */}
                         {loading ? (
-                            <PulsingDotLoader text="Loading device data..." /> 
+                            <CubeLoader text="Loading device data..." /> 
                         ) : hasError ? (
                             <div className="p-6 text-red-400">
                                 <AlertTriangle className="inline-block mr-2" />
@@ -227,16 +270,16 @@ const DeviceDetailsModal = ({ device, onClose, loading }) => {
 };
 
 // ====================================================================
-//                             1. CERTIFICATE MODAL COMPONENT
+//                             1. CERTIFICATE MODAL COMPONENT (UNCHANGED)
 // ====================================================================
 
 const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading }) => {
-    // State to hold the values from the dropdowns (as seen in the screenshot)
+    // State management for certificate options... (omitted for brevity)
     const [certificateOptions, setCertificateOptions] = useState({
-        copyType: 'Customer Copy', // Matches first dropdown
-        letterHead: 'Leather Head', // Matches second dropdown
-        allow: 'Allow',             // Matches third dropdown
-        certificateType: 'Installation' // Matches fourth dropdown
+        copyType: 'Customer Copy', 
+        letterHead: 'Leather Head', 
+        allow: 'Allow',             
+        certificateType: 'Installation' 
     });
 
     const handleChange = (e) => {
@@ -247,7 +290,6 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
     };
 
     const handleDownloadClick = () => {
-        // Pass the deviceNo and selected options to the parent component's download function
         onDownload(deviceNo, certificateOptions);
     };
 
@@ -267,7 +309,7 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
 
             {/* Modal */}
             <div className="flex items-center justify-center min-h-screen p-4">
-                <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 relative">
+                <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100 relative">
                     
                     {/* Header */}
                     <div className="p-6 border-b border-gray-700 flex justify-between items-center">
@@ -348,10 +390,10 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
                         <button 
                             onClick={handleDownloadClick} 
                             disabled={isDownloading}
-                            className={`px-6 py-2 rounded-xl font-bold transition-all duration-300 flex items-center gap-2 shadow-lg 
+                            className={`px-6 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 shadow-lg 
                                 ${isDownloading 
                                     ? 'bg-indigo-700 text-gray-400 cursor-not-allowed' 
-                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/50'
+                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/50 focus:ring-4 focus:ring-indigo-500/50'
                                 }`}
                         >
                             {isDownloading ? (
@@ -369,11 +411,11 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
 
 
 // ====================================================================
-//                             2. PDF GENERATION LOGIC (UPDATED)
+//                             2. PDF GENERATION LOGIC (UNCHANGED)
 // ====================================================================
 
-// PDF generation logic now accepts selected options
 const generateCertificatePDF = (doc, deviceData, options) => {
+    // ... (PDF logic remains the same)
     let y = 15;
     const margin = 15;
     const lineHeight = 8;
@@ -580,31 +622,28 @@ function DeviceMapreport() {
     // State for View Sidebar
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [modalDeviceDetails, setModalDeviceDetails] = useState(null);
-    const [modalLoading, setModalLoading] = useState(false); // For View Details API call
+    const [modalLoading, setModalLoading] = useState(false); 
 
     // State for Certificate Modal
     const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
-    const [isPdfDownloading, setIsPdfDownloading] = useState(false); // For PDF generation loading
+    const [isPdfDownloading, setIsPdfDownloading] = useState(false); 
 
     const isSingleDeviceSelected = selectedDeviceIds.length === 1;
 
-    // --- Action Button Component (Unchanged) ---
-    const ActionButton = ({ icon: Icon, label, onClick, isCertificate = false }) => {
+    // --- Action Button Component (REFINED STYLING) ---
+    const ActionButton = ({ icon: Icon, label, onClick, className = '' }) => {
         const isDisabled = !isSingleDeviceSelected;
         const tooltip = 'Select exactly one device to perform this action.';
 
-        const baseClasses = "px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 shadow-lg";
+        const baseClasses = "px-4 py-2 rounded-md font-semibold text-sm transition-all duration-300 flex items-center gap-2 shadow-lg";
         
-        let enabledClasses = "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/50 focus:ring-4 focus:ring-indigo-500/50";
-        if (isCertificate) {
-             enabledClasses = "bg-yellow-500 text-gray-900 hover:bg-yellow-600 hover:shadow-yellow-500/50 focus:ring-4 focus:ring-yellow-500/50";
-        }
+        const defaultEnabledClasses = "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-500/50";
         
-        const disabledClasses = "bg-gray-700 text-gray-400 cursor-not-allowed shadow-inner";
+        const disabledClasses = "bg-gray-700 text-gray-500 cursor-not-allowed shadow-inner";
 
         return (
             <button
-                className={`${baseClasses} ${isDisabled ? disabledClasses : enabledClasses}`}
+                className={`${baseClasses} ${isDisabled ? disabledClasses : className || defaultEnabledClasses}`}
                 onClick={isDisabled ? null : onClick}
                 disabled={isDisabled}
                 title={isDisabled ? tooltip : label}
@@ -619,21 +658,19 @@ function DeviceMapreport() {
     // --- API Fetch Function for Single Device View (Shared for PDF/View) ---
     const fetchDeviceDetails = async (deviceId, setDetailsState, setLoadingState) => {
         const selectedDevice = mapDevices.find(device => device._id === deviceId);
-
         if (!selectedDevice || !selectedDevice.deviceNo) {
-            if (setDetailsState) setDetailsState({ error: "Could not find Device Number for the selected item." });
+            if (setDetailsState) setDetailsState({ error: "Could not find Device Number." });
             if (setLoadingState) setLoadingState(false);
             return null;
         }
         
         const deviceNoToFetch = selectedDevice.deviceNo;
-
         if (setLoadingState) setLoadingState(true);
         if (setDetailsState) setDetailsState(null); 
 
         try {
             const token = contextToken || localStorage.getItem("token");
-            if (!token) throw new Error("Authentication token not found. Please log in.");
+            if (!token) throw new Error("Authentication token not found.");
 
             const response = await axios.post(
                 "https://wemis-backend.onrender.com/manufactur/viewAMapDeviceInManufactur",
@@ -648,7 +685,7 @@ function DeviceMapreport() {
 
             if (response.data?.mapDevice && typeof response.data.mapDevice === 'object' && !Array.isArray(response.data.mapDevice)) {
                 if (setDetailsState) setDetailsState(response.data.mapDevice); 
-                return response.data.mapDevice; // Return data for PDF function
+                return response.data.mapDevice; 
             } else {
                 if (setDetailsState) setDetailsState({ error: `No detailed data found for Device No: ${deviceNoToFetch}` });
             }
@@ -664,13 +701,12 @@ function DeviceMapreport() {
     const handleViewDetails = () => {
         if (!isSingleDeviceSelected) return;
         setIsViewModalOpen(true);
-        // Pass states for updating the modal's UI
         fetchDeviceDetails(selectedDeviceIds[0], setModalDeviceDetails, setModalLoading);
     };
     // -----------------------------------------------------------------
 
 
-    // --- Certificate Download Handler (NEW/UPDATED) ---
+    // --- Certificate Download Handler ---
     const handleOpenCertificateModal = () => {
         if (!isSingleDeviceSelected) return;
         setIsCertificateModalOpen(true);
@@ -688,7 +724,6 @@ function DeviceMapreport() {
                 throw new Error("Device not found in the list.");
             }
 
-            // Fetch the detailed data, but only set internal loading/error states for fetching
             deviceData = await fetchDeviceDetails(selectedDevice._id, null, () => {}); 
 
             if (!deviceData) {
@@ -709,7 +744,7 @@ function DeviceMapreport() {
             alert(`An error occurred during PDF generation: ${error.message}`);
         } finally {
             setIsPdfDownloading(false);
-            setIsCertificateModalOpen(false); // Close modal after action
+            setIsCertificateModalOpen(false); 
         }
     };
     // -----------------------------------------------------------------
@@ -784,7 +819,7 @@ function DeviceMapreport() {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-screen w-full bg-gray-900">
-                <PulsingDotLoader text="Fetching all mapped devices..." />
+                <CubeLoader text="Fetching all mapped devices..." />
             </div>
         );
     }
@@ -799,7 +834,6 @@ function DeviceMapreport() {
         );
     }
     
-    // Determine the device number for the Certificate Modal
     const selectedDeviceNo = isSingleDeviceSelected 
         ? mapDevices.find(d => d._id === selectedDeviceIds[0])?.deviceNo || null
         : null;
@@ -809,35 +843,58 @@ function DeviceMapreport() {
             {/* Loading overlay for PDF generation */}
             {isPdfDownloading && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center">
-                    <PulsingDotLoader text="Generating and downloading PDF certificate..." />
+                    <CubeLoader text="Generating and downloading PDF certificate..." />
                 </div>
             )}
 
-            <header className="mb-6 md:mb-8 pb-4 border-b border-gray-700">
+            <header className="mb-8 p-6 bg-gray-800 rounded-xl shadow-2xl border-b-4 border-indigo-700/50">
                 <h2 className="text-3xl font-extrabold text-indigo-400 tracking-tight flex items-center gap-2">
-                    <Zap className="h-7 w-7" /> Mapped Devices Report
+                    <Zap className="h-7 w-7 text-yellow-400" /> Mapped Devices Dashboard
                 </h2>
                 
-                {/* ACTION BUTTONS ROW */}
-                <div className="mt-6 flex space-x-4 p-4 bg-gray-800 rounded-xl border border-indigo-700/50 shadow-xl">
+                {/* Search & Filter Area */}
+                <div className="mt-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="relative w-full md:w-1/3">
+                        <input
+                            type="text"
+                            placeholder="Search by Device No, RTO, or Customer Name..."
+                            className="w-full py-2 pl-10 pr-4 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                        />
+                        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    </div>
+                </div>
+
+                {/* ACTION BUTTONS ROW (Improved Layout) */}
+                <div className="mt-6 flex flex-wrap gap-3 p-4 bg-gray-700/50 rounded-lg border border-gray-600 shadow-inner">
                     <ActionButton icon={Eye} label="View Details" onClick={handleViewDetails} />
-                    <ActionButton icon={Edit} label="Edit" onClick={() => alert('Edit action for ' + selectedDeviceIds[0])} />
                     
-                    {/* Button to open the Certificate Modal */}
+                    <ActionButton 
+                        icon={Edit} 
+                        label="Edit Device" 
+                        onClick={() => alert('Edit action for ' + selectedDeviceIds[0])} 
+                        className="bg-yellow-600 text-gray-900 hover:bg-yellow-700 focus:ring-4 focus:ring-yellow-500/50"
+                    />
                     <ActionButton 
                         icon={FileText} 
                         label="Certificates (PDF)" 
                         onClick={handleOpenCertificateModal} 
-                        isCertificate={true}
+                        className="bg-green-600 text-white hover:bg-green-700 focus:ring-4 focus:ring-green-500/50"
+                    />
+                    <ActionButton 
+                        icon={Trash2} 
+                        label="Delete" 
+                        onClick={() => alert('Delete action for ' + selectedDeviceIds[0])} 
+                        className="bg-red-600 text-white hover:bg-red-700 focus:ring-4 focus:ring-red-500/50"
                     />
                 </div>
             </header>
 
             {/* TABLE CONTAINER */}
-            <div className="bg-gray-800 rounded-xl shadow-2xl overflow-hidden ring-1 ring-indigo-500/20">
+            <div className="bg-gray-800 rounded-xl shadow-2xl overflow-hidden ring-1 ring-indigo-500/30">
                 <div className="max-h-[70vh] overflow-y-auto overflow-x-auto">
                     <table className="min-w-full text-sm divide-y divide-gray-700">
-                        <thead className="sticky top-0 bg-gray-900/90 backdrop-blur-sm z-10 border-b border-indigo-500/50">
+                        {/* REFINED TABLE HEADER */}
+                        <thead className="sticky top-0 bg-gray-900/95 backdrop-blur-sm z-10 border-b-2 border-indigo-500 shadow-md">
                             <tr>
                                 <th className="px-4 py-3 text-left min-w-[50px]">
                                     <input 
@@ -848,23 +905,24 @@ function DeviceMapreport() {
                                         onChange={handleSelectAll} 
                                     />
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]"># Info</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Device No.</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Sim Details</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">State/Division</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">Vehicle Detail</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[100px]">**RTO**</th> {/* Added RTO Header */}
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Dealer(Technician)</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[150px]">Customer Name</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[120px]">Customer Mobile</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider min-w-[200px]">Customer Email</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[150px]">Action</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[150px]">Device No.</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[160px]">Sim Details</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[120px]">State/District</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[120px]">Vehicle Type</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[100px]">RTO</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[150px]">Dealer</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[150px]">Customer Name</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[120px]">Mobile No.</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[200px]">Email</th>
                             </tr>
                         </thead>
+                        {/* END REFINED TABLE HEADER */}
                         <tbody className="divide-y divide-gray-700/50">
                             {mapDevices.map((device) => (
                                 <tr 
                                     key={device._id} 
-                                    className={`hover:bg-gray-700/50 transition duration-150 ${selectedDeviceIds.includes(device._id) ? 'bg-indigo-900/40' : ''}`}
+                                    className={`hover:bg-gray-700/50 transition duration-150 ${selectedDeviceIds.includes(device._id) ? 'bg-indigo-900/40 border-l-4 border-indigo-500' : ''}`}
                                 >
                                     <td className="px-4 py-4 whitespace-nowrap">
                                         <input 
@@ -877,23 +935,23 @@ function DeviceMapreport() {
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <button 
                                             onClick={() => {
-                                                setSelectedDeviceIds([device._id]); // Auto-select on Info click
+                                                setSelectedDeviceIds([device._id]); 
                                                 handleViewDetails();
                                             }}
                                             className="inline-flex items-center text-indigo-400 hover:text-indigo-300 font-semibold text-xs border border-indigo-600 px-3 py-1 rounded-full transition"
                                         >
-                                            <Info size={14} className="mr-1" /> Info
+                                            <Info size={14} className="mr-1" /> View
                                         </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-100 font-medium">{device.deviceNo || 'N/A'}</td>
                                     
                                     {/* SIM DETAILS COLUMN */}
-                                    <td className="px-6 py-4 text-gray-300 text-xs">
+                                    <td className="px-6 py-2 text-gray-300 text-xs">
                                         {device.simDetails && device.simDetails.length > 0 ? (
                                             device.simDetails.map((sim, index) => (
-                                                <div key={index} className="flex flex-col mb-1 last:mb-0">
-                                                    <span className="font-medium text-gray-200">{sim.operator || 'N/A'}</span>
-                                                    <span className="text-gray-400 text-xs">{`(${sim.simNo || 'N/A'})`}</span>
+                                                <div key={index} className="flex flex-col mb-1 p-1 rounded-sm bg-gray-700/30 last:mb-0">
+                                                    <span className="font-medium text-indigo-300 text-[11px]">{sim.operator || 'N/A'}</span>
+                                                    <span className="text-gray-400 text-[10px]">{`#${sim.simNo || 'N/A'}`}</span>
                                                 </div>
                                             ))
                                         ) : (
@@ -903,21 +961,20 @@ function DeviceMapreport() {
                                     {/* ------------------- */}
 
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                                        {/* Concatenate State and District/Division */}
                                         {`${device.Customerstate || 'N/A'} / ${device.Customerdistrict || 'N/A'}`}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.VehicleType || 'N/A'}</td>
                                     
-                                    {/* Added RTO Data Cell */}
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300 font-medium">
+                                    {/* RTO Data Cell */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-yellow-400 font-semibold">
                                         {device.Rto || 'N/A'}
                                     </td>
                                     {/* ---------------------- */}
 
-                                    <td className="px-6 py-4 whitespace-nowrap text-yellow-400 font-semibold">{device.delerName || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-200">{device.delerName || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-100">{device.fullName || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300">{device.mobileNo || 'N/A'}</td>
-                                    <td className="px-6 py-4 text-gray-300">{device.email || 'N/A'}</td>
+                                    <td className="px-6 py-4 text-gray-300 truncate max-w-[200px]">{device.email || 'N/A'}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -933,7 +990,7 @@ function DeviceMapreport() {
                 isOpen={isViewModalOpen}
             />
 
-            {/* NEW: Certificate Selection Modal */}
+            {/* Certificate Selection Modal */}
             <CertificateModal
                 isOpen={isCertificateModalOpen}
                 onClose={() => setIsCertificateModalOpen(false)}
